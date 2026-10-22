@@ -20,6 +20,12 @@ async function fresh(page: Page, lang: 'en' | 'id' | 'jv' | null = 'en') {
   await expect(page.getByTestId('tree-canvas')).toBeVisible();
 }
 
+async function setLangViaSettings(page: Page, lang: string) {
+  await page.getByTestId('btn-settings').click();
+  await page.getByTestId('settings-menu').getByTestId('lang-select').selectOption(lang);
+  await page.keyboard.press('Escape');
+}
+
 const persons = (page: Page) => page.locator('g.person');
 const card = (page: Page, name: string) => page.locator('g.person', { hasText: name }).first();
 
@@ -252,6 +258,12 @@ test('mobile layout has no horizontal overflow and a bottom sheet editor @mobile
   await fresh(page);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
+  // Every toolbar button must be on screen (the title input yields space).
+  for (const id of ['btn-open', 'btn-save', 'btn-export', 'btn-search', 'btn-more']) {
+    const b = (await page.getByTestId(id).boundingBox())!;
+    expect(b.x, id).toBeGreaterThanOrEqual(0);
+    expect(b.x + b.width, id).toBeLessThanOrEqual(390);
+  }
   await card(page, 'My Mother').locator('.card-bg').tap({ position: { x: 20, y: 20 } });
   await expect(page.getByTestId('selected-name')).toHaveText('My Mother');
   await expect(page.getByTestId('sidebar')).not.toHaveClass(/hidden/);
@@ -268,20 +280,20 @@ test('defaults to Indonesian and switches to Javanese and English', async ({ pag
   await page.getByTestId('add-sibling').click();
   await expect(page.getByTestId('selected-name')).toHaveText('Saudara dari Saya');
 
-  await page.getByTestId('lang-select').first().selectOption('jv');
+  await setLangViaSettings(page, 'jv');
   await expect(page.locator('html')).toHaveAttribute('lang', 'jv');
   await expect(page.getByTestId('btn-open')).toContainText('Bukak');
   await expect(page.getByTestId('add-partner')).toContainText('Tambah bojo');
   await page.getByTestId('add-partner').click();
   await expect(page.getByTestId('selected-name')).toHaveText('Bojoné Saudara dari Saya');
 
-  await page.getByTestId('lang-select').first().selectOption('en');
+  await setLangViaSettings(page, 'en');
   await expect(page.getByTestId('btn-open')).toContainText('Open');
   await page.reload();
   await expect(page.getByTestId('btn-open')).toContainText('Open');
 
   // Text export follows the language.
-  await page.getByTestId('lang-select').first().selectOption('id');
+  await setLangViaSettings(page, 'id');
   await page.getByTestId('btn-export').click();
   await page.getByTestId('export-kind-txt').click();
   const [txt] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-run').click()]);
@@ -289,4 +301,20 @@ test('defaults to Indonesian and switches to Javanese and English', async ({ pag
   expect(text).toContain('SILSILAH KELUARGA');
   expect(text).toContain('LELUHUR');
   expect(text).toContain('Maret 1965');
+});
+
+test('a freshly imported tree is fitted into view', async ({ page }) => {
+  await fresh(page);
+  await importFile(page, path.resolve('docs/demo/keluarga-contoh.ged'));
+  await expect(page.getByTestId('view-info')).toContainText('14/14');
+  await page.waitForTimeout(700);
+  const box = await page.getByTestId('tree-canvas').boundingBox();
+  const cards = await persons(page).evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON()));
+  expect(cards.length).toBe(14);
+  for (const c of cards) {
+    expect(c.left).toBeGreaterThanOrEqual(box!.x - 1);
+    expect(c.right).toBeLessThanOrEqual(box!.x + box!.width + 1);
+    expect(c.top).toBeGreaterThanOrEqual(box!.y - 1);
+    expect(c.bottom).toBeLessThanOrEqual(box!.y + box!.height + 1);
+  }
 });

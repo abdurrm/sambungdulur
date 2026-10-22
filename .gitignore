@@ -12,6 +12,7 @@ playwright-report/
 # Personal family data and work copies: never commit
 *.ged
 !tests/fixtures/*.ged
+!docs/demo/*.ged
 *.zip
 *.ftb
 *.sambung

@@ -280,7 +280,12 @@ hr.sep { border: 0; border-top: 1px solid var(--panel-border); margin: 2px 0; wi
   .only-mobile { display: initial; }
   .hide-mobile { display: none !important; }
   .brand small, .status-chip { display: none; }
-  .title-input { max-width: 140px; font-size: 13px; }
+  .header { gap: 6px; padding: 0 8px; }
+  /* The title yields space so every toolbar button stays on screen. */
+  .title-input { flex: 1 1 0; min-width: 0; max-width: none; font-size: 13px; padding: 6px 4px; }
+  .spacer { display: none; }
+  .toolbar { flex: none; overflow: visible; gap: 2px; }
+  .tool-btn { padding: 0 8px; }
   .sidebar {
     position: absolute; left: 0; right: 0; bottom: 0; width: auto; max-height: 62%; border-right: 0;
     border-top: 1px solid var(--panel-border); border-radius: 16px 16px 0 0; box-shadow: var(--shadow); transition: transform 0.22s ease;
@@ -301,3 +306,7 @@ hr.sep { border: 0; border-top: 1px solid var(--panel-border); margin: 2px 0; wi
 .sidebar-grip::before { content: ''; width: 36px; height: 4px; border-radius: 4px; background: var(--panel-border); position: absolute; top: 6px; left: 50%; transform: translateX(-50%); }
 
 .lang-select { height: 38px; padding: 0 8px; font-size: 13px; width: auto; }
+/* The language is also in Tree settings; free header space on narrower desktops. */
+@media (max-width: 1599px) {
+  .header-lang { display: none; }
+}

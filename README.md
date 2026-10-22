@@ -4,6 +4,8 @@
 
 > "Sambung dulur" (Jawa): menyambung tali persaudaraan.
 
+> **Panduan bergambar:** [docs/PANDUAN.md](docs/PANDUAN.md) berisi langkah demi langkah dengan screenshot beranotasi. Naskah video singkat ada di [docs/VIDEO_NARASI.md](docs/VIDEO_NARASI.md). Data contoh fiktif: [docs/demo/](docs/demo/).
+
 ## Gambaran umum
 
 | | |

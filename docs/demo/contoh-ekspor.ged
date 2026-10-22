@@ -1,0 +1,154 @@
+0 HEAD
+1 GEDC
+2 VERS 5.5.1
+2 FORM LINEAGE-LINKED
+1 CHAR UTF-8
+1 SOUR SAMBUNGDULUR-DEMO
+2 NAME Data contoh fiktif
+0 @I1@ INDI
+1 NAME Hadi /Santoso/
+2 GIVN Hadi
+1 SEX M
+1 BIRT
+2 DATE 12 MAR 1930
+2 PLAC Malang, Indonesia
+1 DEAT
+2 DATE 2005
+1 OCCU Guru
+1 FAMS @F1@
+0 @I2@ INDI
+1 NAME Sumiati //
+2 GIVN Sumiati
+1 SEX F
+1 BIRT
+2 DATE 1934
+2 PLAC Blitar, Indonesia
+1 FAMS @F1@
+0 @I3@ INDI
+1 NAME Bambang /Santoso/
+2 GIVN Bambang
+1 SEX M
+1 BIRT
+2 DATE 3 JUN 1958
+2 PLAC Malang, Indonesia
+1 OCCU Insinyur
+1 FAMC @F1@
+1 FAMS @F2@
+0 @I4@ INDI
+1 NAME Ratna Dewi //
+2 GIVN Ratna Dewi
+1 SEX F
+1 BIRT
+2 DATE 1960
+2 PLAC Surabaya, Indonesia
+1 FAMS @F2@
+0 @I5@ INDI
+1 NAME Lestari /Santoso/
+2 GIVN Lestari
+1 SEX F
+1 BIRT
+2 DATE 21 SEP 1962
+2 PLAC Malang, Indonesia
+1 OCCU Dokter
+1 FAMC @F1@
+1 FAMS @F3@
+0 @I6@ INDI
+1 NAME Agus /Pratama/
+2 GIVN Agus
+1 SEX M
+1 BIRT
+2 DATE 1960
+2 PLAC Yogyakarta, Indonesia
+1 FAMS @F3@
+0 @I7@ INDI
+1 NAME Wahyu /Santoso/
+2 GIVN Wahyu
+1 SEX M
+1 BIRT
+2 DATE 1965
+2 PLAC Malang, Indonesia
+1 FAMC @F1@
+0 @I8@ INDI
+1 NAME Dimas /Santoso/
+2 GIVN Dimas
+1 SEX M
+1 BIRT
+2 DATE 14 FEB 1985
+2 PLAC Malang, Indonesia
+1 OCCU Arsitek
+1 NOTE Gemar mendaki gunung dan memotret.
+1 FAMC @F2@
+1 FAMS @F4@
+0 @I9@ INDI
+1 NAME Ayu /Santoso/
+2 GIVN Ayu
+1 SEX F
+1 BIRT
+2 DATE 2 NOV 1988
+2 PLAC Malang, Indonesia
+1 OCCU Dosen
+1 FAMC @F2@
+0 @I10@ INDI
+1 NAME Rina /Pratama/
+2 GIVN Rina
+1 SEX F
+1 BIRT
+2 DATE 1990
+2 PLAC Yogyakarta, Indonesia
+1 FAMC @F3@
+0 @I11@ INDI
+1 NAME Fajar /Pratama/
+2 GIVN Fajar
+1 SEX M
+1 BIRT
+2 DATE 1993
+2 PLAC Yogyakarta, Indonesia
+1 FAMC @F3@
+0 @I12@ INDI
+1 NAME Sari Wulandari //
+2 GIVN Sari Wulandari
+1 SEX F
+1 BIRT
+2 DATE 1987
+2 PLAC Jakarta, Indonesia
+1 FAMS @F4@
+0 @I13@ INDI
+1 NAME Naura /Santoso/
+2 GIVN Naura
+1 SEX F
+1 BIRT
+2 DATE 2015
+2 PLAC Malang, Indonesia
+1 FAMC @F4@
+0 @I14@ INDI
+1 NAME Kenzo /Santoso/
+2 GIVN Kenzo
+1 SEX M
+1 BIRT
+2 DATE 2018
+2 PLAC Malang, Indonesia
+1 FAMC @F4@
+0 @F1@ FAM
+1 HUSB @I1@
+1 WIFE @I2@
+1 CHIL @I3@
+1 CHIL @I5@
+1 CHIL @I7@
+1 MARR
+2 DATE 1956
+0 @F2@ FAM
+1 HUSB @I3@
+1 WIFE @I4@
+1 CHIL @I8@
+1 CHIL @I9@
+0 @F3@ FAM
+1 HUSB @I6@
+1 WIFE @I5@
+1 CHIL @I10@
+1 CHIL @I11@
+0 @F4@ FAM
+1 HUSB @I8@
+1 WIFE @I12@
+1 CHIL @I13@
+1 CHIL @I14@
+0 TRLR

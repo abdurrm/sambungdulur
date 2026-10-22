@@ -21,7 +21,7 @@ Tes data nyata dilewati otomatis bila `local-test-data/` tidak ada (misalnya di 
 ## 2. E2E (Playwright, build produksi via `vite preview`) — `npx playwright test`
 
 ```
-11 passed (30.3s)
+12 passed (~30s)
 ```
 
 | Tes | Membuktikan |
@@ -36,9 +36,10 @@ Tes data nyata dilewati otomatis bila `local-test-data/` tidak ada (misalnya di 
 | zoom buttons respect limits and centre works | zoom in/out hingga batas, center |
 | works offline as an installable PWA | manifest standalone + ikon 512, service worker mengontrol halaman, reload saat offline tetap memuat pohon |
 | mobile layout… @mobile | 390×844: tanpa overflow horizontal, tap memilih orang, bottom sheet & menu "lainnya" |
+| a freshly imported tree is fitted into view | impor 14 orang: semua kartu berada di dalam kanvas (regresi bug impor tanpa pemusatan) |
 | defaults to Indonesian and switches… | default `lang=id` (Buka, "Saya", "Saudara dari Saya"), Jawa ("Bukak", "Bojoné …"), Inggris bertahan setelah reload, dokumen teks dalam bahasa Indonesia |
 
-Bug nyata yang ditemukan E2E dan diperbaiki: (1) memilih Hari/Bulan sebelum Tahun menghapus pilihan; (2) zoom berulang dihitung dari skala yang sedang dianimasikan; (3) `useState` dipanggil setelah `return` bersyarat pada input tanggal.
+Bug nyata yang ditemukan saat uji/pembuatan dokumentasi dan diperbaiki: (a) setelah impor, tampilan tidak dipusatkan (urutan `pendingCenter` salah); (b) di layar 390 px tombol ⋯ terdorong keluar layar karena kolom judul terlalu lebar (asersi posisi tombol kini ada di tes mobile); (c) toolbar desktop 1400 px terpotong oleh pemilih bahasa (kini disembunyikan di bawah 1600 px; bahasa tetap ada di Pengaturan pohon). Ditemukan E2E sebelumnya: (1) memilih Hari/Bulan sebelum Tahun menghapus pilihan; (2) zoom berulang dihitung dari skala yang sedang dianimasikan; (3) `useState` dipanggil setelah `return` bersyarat pada input tanggal.
 
 ## 3. Bukti manual — dua tab browser Orca
 
@@ -47,7 +48,11 @@ Bug nyata yang ditemukan E2E dan diperbaiki: (1) memilih Hari/Bulan sebelum Tahu
 - Screenshot: `evidence/a-01…a-08` (tab A) dan `evidence/b-01…b-04` (tab B). Screenshot tab A **tidak di-commit** karena memuat alamat email akun.
 - Perbandingan visual: struktur sama (panel kiri 3 tab, toolbar, kanvas berpusat, ayah-ibu di atas anak); gaya sengaja berbeda (archify, cincin gender, kartu berisi data sesuai pengaturan). Ketidaksesuaian yang ditemukan dari perbandingan lalu diperbaiki: label "Person's Name", tanggal kosong "Unknown", form edit per tab, posisi handle ↔ di atas kartu, Save nonaktif, sidebar disembunyikan di manual mode, overflow toolbar.
 
-## 4. Yang tidak/ belum terverifikasi
+## 4. Dokumentasi bergambar
+
+`npm run docs` (`scripts/make-docs.mjs`) menjalankan build produksi dengan Edge dan data fiktif `docs/demo/keluarga-contoh.ged`, menggambar penanda bernomor, dan menghasilkan 26 screenshot beranotasi serta 3 contoh ekspor PNG di `docs/img/`. Setiap screenshot diperiksa secara visual terhadap teks di `docs/PANDUAN.md`.
+
+## 5. Yang tidak/ belum terverifikasi
 
 - Mutasi pada situs asli (add/delete/upload) tidak dijalankan karena tab A login ke akun nyata; perilakunya diturunkan dari kode bundle (lihat FEATURE_MATRIX).
 - Fitur khusus akun (upload gambar, simpan cloud, paket) tidak diamati — sesuai larangan melewati kontrol akses.

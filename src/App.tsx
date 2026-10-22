@@ -319,9 +319,10 @@ export default function App() {
     setDraftDy({});
     setMatches(new Set());
     setSelectedId(null);
+    // Must be set before the new doc renders: the layout effect consumes it on the next layout.
+    pendingCenter.current = 'fit';
     setDocState(withDefaults(next));
     await store.saveDoc(withDefaults(next));
-    pendingCenter.current = 'fit';
   };
 
   const openFile = async (file: File): Promise<OpenReport> => {
@@ -509,7 +510,7 @@ export default function App() {
           <span className="hide-mobile">
             <GenerationControl settings={doc.settings} onChange={patchSettings} />
           </span>
-          <span className="hide-mobile">
+          <span className="hide-mobile header-lang">
             <LanguageSelect lang={lang} onChange={changeLang} />
           </span>
           <button className={`tool-btn${popover === 'settings' ? ' active' : ''}`} onClick={() => setPopover(popover === 'settings' ? null : 'settings')} data-testid="btn-settings" title={t('treeSettings')}>
