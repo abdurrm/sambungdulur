@@ -1,0 +1,23 @@
+node_modules/
+dist/
+build/
+.cache/
+coverage/
+test-results/
+playwright-report/
+.env
+.env.local
+*.log
+
+# Personal family data and work copies: never commit
+*.ged
+!tests/fixtures/*.ged
+*.zip
+*.ftb
+*.sambung
+test-data/
+local-test-data/
+temp/
+
+# Screenshots of the original site show the signed-in account; keep them local
+evidence/a-*.png

@@ -1,0 +1,39 @@
+{
+  "name": "sambungdulur",
+  "version": "1.0.0",
+  "description": "SambungDulur — offline family tree builder (PWA): GEDCOM & MyHeritage import, archify-style tree, PNG/GEDCOM/text export.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5173 --host 127.0.0.1",
+    "build": "tsc --noEmit -p . && vite build",
+    "preview": "vite preview --port 4173 --host 127.0.0.1",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "icons": "node scripts/make-icons.mjs"
+  },
+  "dependencies": {
+    "d3-selection": "^3.0.0",
+    "d3-transition": "^3.0.1",
+    "d3-zoom": "^3.0.0",
+    "fflate": "^0.8.3",
+    "lucide-react": "^1.61.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "sql.js": "^1.15.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/d3-selection": "^3.0.12",
+    "@types/d3-transition": "^3.0.9",
+    "@types/d3-zoom": "^3.0.9",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/sql.js": "^1.4.11",
+    "@vitejs/plugin-react": "^6.1.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  },
+  "private": true
+}

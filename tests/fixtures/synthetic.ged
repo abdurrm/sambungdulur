@@ -1,0 +1,68 @@
+0 HEAD
+1 GEDC
+2 VERS 5.5.1
+2 FORM LINEAGE-LINKED
+1 CHAR UTF-8
+1 SOUR SYNTHETIC
+2 NAME Synthetic Fixture
+1 _CUSTOM_HEADER keep me
+0  _PUBLISH
+1 _SITENAME Fixture Site
+0 @U1@ SUBM
+1 NAME Fixture Author
+0 @I1@ INDI
+1 RIN MH:I1
+1 _UID AAAA-1111
+1 NAME Budi Santoso /Wijaya/
+2 GIVN Budi Santoso
+2 SURN Wijaya
+1 SEX M
+1 BIRT
+2 DATE 12 MAR 1950
+2 PLAC Malang, Jawa Timur, Indonesia
+1 DEAT
+2 DATE ABT 2010
+1 OCCU Guru
+1 NOTE <p style="text-align: left;">Suka berkebun &amp; membaca</p>
+2 CONT <p>Baris kedua — ünïcödé ✓</p>
+1 OBJE
+2 FORM jpg
+2 FILE C:\Photos\P1_100_100.jpg
+2 TITL Budi
+2 _PRIM Y
+2 _PHOTO_RIN MH:P1
+1 FAMS @F1@
+1 _UPD 1 JAN 2020 10:00:00 GMT +0700
+0 @I2@ INDI
+1 RIN MH:I2
+1 NAME Siti Aminah //
+2 GIVN Siti Aminah
+1 SEX F
+1 BIRT
+2 DATE 1955
+1 FAMS @F1@
+0 @I3@ INDI
+1 NAME Ayu //
+2 GIVN Ayu
+1 SEX F
+1 BIRT
+2 DATE 4 JUL 1980
+1 FAMC @F1@
+2 PEDI birth
+1 RESI
+2 ADDR Jl. Mawar 1
+3 CITY Malang
+0 @I4@ INDI
+1 SEX U
+1 FAMC @F1@
+0 @F1@ FAM
+1 RIN MH:F1
+1 _UID FFFF-1111
+1 HUSB @I1@
+1 WIFE @I2@
+1 CHIL @I3@
+1 CHIL @I4@
+1 MARR
+2 DATE 1 JAN 1975
+2 PLAC Surabaya
+0 TRLR

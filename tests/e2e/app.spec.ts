@@ -1,0 +1,292 @@
+import { expect, test, type Page } from '@playwright/test';
+import fs from 'node:fs';
+import path from 'node:path';
+
+const fixture = path.resolve('tests/fixtures/synthetic.ged');
+
+async function fresh(page: Page, lang: 'en' | 'id' | 'jv' | null = 'en') {
+  await page.goto('/');
+  // Start every test from an empty browser store.
+  await page.evaluate(async () => {
+    localStorage.clear();
+    await new Promise<void>((r) => {
+      const req = indexedDB.deleteDatabase('sambungdulur');
+      req.onsuccess = req.onerror = req.onblocked = () => r();
+    });
+  });
+  // Most tests assert English labels; the app default (Indonesian) is covered separately.
+  if (lang) await page.evaluate((l) => localStorage.setItem('sambungdulur.lang', l), lang);
+  await page.reload();
+  await expect(page.getByTestId('tree-canvas')).toBeVisible();
+}
+
+const persons = (page: Page) => page.locator('g.person');
+const card = (page: Page, name: string) => page.locator('g.person', { hasText: name }).first();
+
+async function importFile(page: Page, file: string) {
+  await page.getByTestId('btn-open').click();
+  await page.getByTestId('open-file-input').setInputFiles(file);
+  await expect(page.getByTestId('open-report')).toBeVisible();
+  await page.getByTestId('open-close').click();
+}
+
+test.describe('family tree editor', () => {
+  test.beforeEach(async ({ page }) => fresh(page));
+
+  test('starts with the three-person tree and gender-coloured photo rings', async ({ page }) => {
+    await expect(persons(page)).toHaveCount(3);
+    await expect(page.getByTestId('selected-name')).toHaveText('Me');
+    const rings = await page.locator('circle.ring').evaluateAll((els) => els.map((e) => [e.getAttribute('data-gender'), e.getAttribute('stroke')]));
+    const male = rings.filter((r) => r[0] === 'male').map((r) => r[1]);
+    const female = rings.filter((r) => r[0] === 'female').map((r) => r[1]);
+    expect(new Set(male).size).toBe(1);
+    expect(female.length).toBe(1);
+    expect(male[0]).not.toBe(female[0]);
+    await expect(page.getByTestId('add-parents')).toBeDisabled();
+  });
+
+  test('adds relatives, edits a person and enforces delete rules', async ({ page }) => {
+    await page.getByTestId('add-sibling').click();
+    await expect(persons(page)).toHaveCount(4);
+    await expect(page.getByTestId('selected-name')).toHaveText('Sibling of Me');
+
+    await card(page, 'Me').locator('.card-bg').click({ position: { x: 20, y: 20 } });
+    await page.getByTestId('add-partner').click();
+    await expect(persons(page)).toHaveCount(5);
+    const partnerName = await page.getByTestId('selected-name').textContent();
+    expect(partnerName).toBe('Partner of Me');
+
+    // Add child with the existing partner via the dialog.
+    await page.getByTestId('add-child').click();
+    await expect(page.getByTestId('add-child-dialog')).toContainText('Add child with Me');
+    await page.getByTestId('add-child-submit').click();
+    await expect(persons(page)).toHaveCount(6);
+
+    // Edit the child (Personal + Biography tabs).
+    await page.getByTestId('edit-person').click();
+    await page.getByTestId('f-given').fill('Ayu Lestari ✓');
+    await page.getByTestId('f-gender-female').check();
+    await page.getByTestId('f-dob-day').selectOption('5');
+    await page.getByTestId('f-dob-month').selectOption('3');
+    await page.getByTestId('f-dob-year').selectOption('2020');
+    await page.getByTestId('tab-biography').click();
+    await page.getByTestId('f-profession').fill('Pelajar');
+    await page.getByTestId('f-save').click();
+    await expect(page.getByTestId('selected-name')).toHaveText('Ayu Lestari ✓');
+    await expect(card(page, 'Ayu Lestari ✓')).toContainText('03/05/2020');
+    await expect(card(page, 'Ayu Lestari ✓').locator('circle.ring')).toHaveAttribute('data-gender', 'female');
+
+    // "Partner of Me" now links the child to the tree: deleting "Me" would split it.
+    await card(page, 'Me').locator('.card-bg').click({ position: { x: 20, y: 20 } });
+    await page.getByTestId('delete-person').click();
+    await expect(page.getByTestId('message-dialog')).toContainText('split');
+    await page.getByTestId('message-ok').click();
+
+    // A leaf can be deleted after confirmation.
+    await card(page, 'Sibling of Me').locator('.card-bg').click({ position: { x: 20, y: 20 } });
+    await page.getByTestId('delete-person').click();
+    await page.getByTestId('confirm-ok').click();
+    await expect(persons(page)).toHaveCount(5);
+
+    // Persistence: reload keeps everything.
+    await page.waitForTimeout(700);
+    await page.reload();
+    await expect(persons(page)).toHaveCount(5);
+    await expect(card(page, 'Ayu Lestari ✓')).toBeVisible();
+  });
+
+  test('tree settings change the cards', async ({ page }) => {
+    await page.getByTestId('btn-settings').click();
+    await page.getByTestId('set-date-format').selectOption('DD.MM.YYYY');
+    await expect(card(page, 'Me')).toContainText('04.07.1994');
+    await page.getByTestId('set-date-format').selectOption('YYYY');
+    await expect(card(page, 'Me')).toContainText('1994');
+    await page.getByTestId('set-font-size').selectOption('large');
+    await expect(page.getByTestId('set-facts')).toBeDisabled();
+    await page.getByTestId('set-dob').uncheck();
+    await expect(page.getByTestId('set-dod')).not.toBeChecked();
+    await page.getByTestId('set-theme-dark').click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  });
+
+  test('imports GEDCOM, searches, limits generations and exports GEDCOM losslessly', async ({ page }) => {
+    await importFile(page, fixture);
+    await expect(page.getByTestId('view-info')).toContainText('4/4 shown');
+
+    // Search by partial, accent-insensitive name.
+    await page.getByTestId('btn-search').click();
+    await page.getByTestId('search-input').fill('siti');
+    await expect(page.getByTestId('search-count')).toContainText('1 match');
+    await page.getByTestId('search-hit-I2').click();
+    await expect(page.getByTestId('selected-name')).toHaveText('Siti Aminah');
+
+    // Generation control: focus on Budi (I1) and hide descendants.
+    await page.getByTestId('btn-search').click();
+    await page.getByTestId('search-input').fill('budi');
+    await page.getByTestId('search-input').press('Enter');
+    await page.getByTestId('focus-person').click();
+    await page.getByTestId('gen-down-minus').click(); // All -> 10
+    for (let i = 0; i < 10; i++) await page.getByTestId('gen-down-minus').click();
+    await expect(page.getByTestId('gen-down-value')).toHaveText('0');
+    await expect(page.getByTestId('view-info')).toContainText('2/4 shown');
+    await page.getByTestId('gen-down-plus').click();
+    await expect(page.getByTestId('view-info')).toContainText('4/4 shown');
+
+    // Edit one field and export.
+    await page.getByTestId('edit-person').click();
+    await page.getByTestId('tab-biography').click();
+    await page.getByTestId('f-profession').fill('Kepala Sekolah');
+    await page.getByTestId('f-save').click();
+    await page.getByTestId('btn-export').click();
+    await page.getByTestId('export-kind-ged').click();
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-run').click()]);
+    const out = fs.readFileSync((await dl.path())!, 'utf8');
+    const src = fs.readFileSync(fixture, 'utf8');
+    expect(out).toContain('1 OCCU Kepala Sekolah');
+    expect(out).not.toContain('1 OCCU Guru');
+    const changed = out.split('\n').filter((l) => !src.split('\n').includes(l));
+    expect(changed).toEqual(['1 OCCU Kepala Sekolah']);
+  });
+
+  test('saves a .sambung file and reopens it after reset', async ({ page }) => {
+    await page.getByTestId('add-sibling').click();
+    await page.getByTestId('tree-title').fill('Keluarga Uji');
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.getByTestId('btn-save').click()]);
+    expect(dl.suggestedFilename()).toBe('keluarga-uji.sambung');
+    const saved = (await dl.path())!;
+    await page.getByTestId('btn-reset').click();
+    await page.getByTestId('confirm-ok').click();
+    await expect(persons(page)).toHaveCount(3);
+    await page.getByTestId('btn-open').click();
+    await page.getByTestId('open-file-input').setInputFiles({ name: 'keluarga-uji.sambung', mimeType: 'application/zip', buffer: fs.readFileSync(saved) });
+    await expect(page.getByTestId('open-report')).toContainText('People: 4');
+    await page.getByTestId('open-close').click();
+    await expect(persons(page)).toHaveCount(4);
+    await expect(page.getByTestId('tree-title')).toHaveValue('Keluarga Uji');
+  });
+
+  test('exports PNG in compact, normal and detailed density, plus text and SVG', async ({ page }) => {
+    const sizes: Record<string, { w: number; h: number }> = {};
+    for (const d of ['compact', 'normal', 'detailed']) {
+      await page.getByTestId('btn-export').click();
+      await page.getByTestId('export-kind-png').click();
+      await page.getByTestId(`export-density-${d}`).click();
+      const [dl] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-run').click()]);
+      expect(dl.suggestedFilename()).toBe(`my-family-tree-${d}.png`);
+      const buf = fs.readFileSync((await dl.path())!);
+      expect(buf.subarray(1, 4).toString()).toBe('PNG');
+      sizes[d] = { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+    }
+    expect(sizes.compact.w).toBeLessThan(sizes.normal.w);
+    expect(sizes.normal.w).toBeLessThan(sizes.detailed.w);
+
+    await page.getByTestId('btn-export').click();
+    await page.getByTestId('export-kind-txt').click();
+    const [txt] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-run').click()]);
+    const text = fs.readFileSync((await txt.path())!, 'utf8');
+    expect(text).toContain('ANCESTORS of Me');
+    expect(text).toContain('2. My Father');
+    expect(text).toContain('3. My Mother');
+
+    await page.getByTestId('btn-export').click();
+    await page.getByTestId('export-kind-svg').click();
+    const [svg] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-run').click()]);
+    expect(fs.readFileSync((await svg.path())!, 'utf8')).toContain('<svg');
+  });
+
+  test('manual layout moves a person and survives reload', async ({ page }) => {
+    const before = await card(page, 'My Father').locator('.card-bg').boundingBox();
+    await page.getByTestId('btn-manual').click();
+    await expect(page.getByTestId('manual-continue')).toBeDisabled();
+    await expect(page.getByTestId('manual-continue')).toBeEnabled({ timeout: 6000 });
+    await page.getByTestId('manual-continue').click();
+    await expect(page.getByTestId('manual-save')).toBeDisabled();
+    const handle = card(page, 'My Father').locator('.move-handle rect');
+    const hb = (await handle.boundingBox())!;
+    await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(hb.x + hb.width / 2 - 120, hb.y + hb.height / 2, { steps: 8 });
+    await page.mouse.up();
+    await page.getByTestId('manual-save').click();
+    const after = await card(page, 'My Father').locator('.card-bg').boundingBox();
+    expect(after!.x).toBeLessThan(before!.x - 40);
+    await page.waitForTimeout(700);
+    await page.reload();
+    const reloaded = await card(page, 'My Father').locator('.card-bg').boundingBox();
+    expect(Math.abs(reloaded!.x - after!.x)).toBeLessThan(80);
+  });
+
+  test('zoom buttons respect limits and centre works', async ({ page }) => {
+    const info = page.getByTestId('view-info');
+    const pct = async () => +(/(\d+)%/.exec((await info.textContent())!)![1]);
+    const start = await pct();
+    await page.getByTestId('btn-zoom-in').click();
+    await expect.poll(pct).toBeGreaterThan(start);
+    for (let i = 0; i < 40; i++) {
+      if (await page.getByTestId('btn-zoom-out').isDisabled()) break;
+      await page.getByTestId('btn-zoom-out').click();
+    }
+    await expect.poll(pct).toBeLessThanOrEqual(6);
+    await page.getByTestId('btn-center').click();
+    await expect.poll(pct).toBeGreaterThan(20);
+  });
+
+  test('works offline as an installable PWA', async ({ page, context }) => {
+    const manifest = await page.locator('link[rel=manifest]').getAttribute('href');
+    const res = await page.request.get(new URL(manifest!, page.url()).toString());
+    const json = await res.json();
+    expect(json.display).toBe('standalone');
+    expect(json.icons.some((i: { sizes: string }) => i.sizes === '512x512')).toBe(true);
+    await page.waitForFunction(() => navigator.serviceWorker?.controller !== null || navigator.serviceWorker.ready.then(() => true), null, { timeout: 15000 });
+    await page.evaluate(() => navigator.serviceWorker.ready);
+    await page.reload();
+    await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+    await context.setOffline(true);
+    await page.reload();
+    await expect(persons(page)).toHaveCount(3);
+    await context.setOffline(false);
+  });
+});
+
+test('mobile layout has no horizontal overflow and a bottom sheet editor @mobile', async ({ page }) => {
+  await fresh(page);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+  await card(page, 'My Mother').locator('.card-bg').tap({ position: { x: 20, y: 20 } });
+  await expect(page.getByTestId('selected-name')).toHaveText('My Mother');
+  await expect(page.getByTestId('sidebar')).not.toHaveClass(/hidden/);
+  await page.getByTestId('btn-more').tap();
+  await expect(page.getByTestId('more-menu')).toBeVisible();
+});
+
+test('defaults to Indonesian and switches to Javanese and English', async ({ page }) => {
+  await fresh(page, null);
+  await expect(page.locator('html')).toHaveAttribute('lang', 'id');
+  await expect(page.getByTestId('btn-open')).toContainText('Buka');
+  await expect(page.getByTestId('selected-name')).toHaveText('Saya');
+  await expect(card(page, 'Ayah Saya')).toContainText('l. 03/07/1965');
+  await page.getByTestId('add-sibling').click();
+  await expect(page.getByTestId('selected-name')).toHaveText('Saudara dari Saya');
+
+  await page.getByTestId('lang-select').first().selectOption('jv');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'jv');
+  await expect(page.getByTestId('btn-open')).toContainText('Bukak');
+  await expect(page.getByTestId('add-partner')).toContainText('Tambah bojo');
+  await page.getByTestId('add-partner').click();
+  await expect(page.getByTestId('selected-name')).toHaveText('Bojoné Saudara dari Saya');
+
+  await page.getByTestId('lang-select').first().selectOption('en');
+  await expect(page.getByTestId('btn-open')).toContainText('Open');
+  await page.reload();
+  await expect(page.getByTestId('btn-open')).toContainText('Open');
+
+  // Text export follows the language.
+  await page.getByTestId('lang-select').first().selectOption('id');
+  await page.getByTestId('btn-export').click();
+  await page.getByTestId('export-kind-txt').click();
+  const [txt] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-run').click()]);
+  const text = fs.readFileSync((await txt.path())!, 'utf8');
+  expect(text).toContain('SILSILAH KELUARGA');
+  expect(text).toContain('LELUHUR');
+  expect(text).toContain('Maret 1965');
+});
