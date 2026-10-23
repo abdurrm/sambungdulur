@@ -10,7 +10,7 @@
 
 [![Tonton video demo SambungDulur](docs/video/poster.jpg)](docs/video/sambungdulur-demo.mp4)
 
-**[▶ Tonton video demo](docs/video/sambungdulur-demo.mp4)** (3 menit 20 detik, narasi suara Microsoft Andika, [subtitle](docs/video/sambungdulur-demo.id.srt)) · **[Panduan bergambar](docs/PANDUAN.md)** (langkah demi langkah dengan screenshot beranotasi) · [Naskah video](docs/VIDEO_NARASI.md) · [Data contoh fiktif](docs/demo/)
+**[▶ Tonton di YouTube](https://youtu.be/iQQemqZ_DVY)** · [Video lokal (MP4)](docs/video/sambungdulur-demo.mp4) ([subtitle](docs/video/sambungdulur-demo.id.srt)) · **[Panduan bergambar](docs/PANDUAN.md)** (langkah demi langkah dengan screenshot beranotasi) · [Naskah video](docs/VIDEO_NARASI.md) · [Data contoh fiktif](docs/demo/)
 
 
 ## Gambaran umum
