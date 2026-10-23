@@ -4,6 +4,12 @@ Panduan ini membawa Anda dari layar pertama sampai mengekspor pohon keluarga. Se
 
 > Semua gambar memakai **data fiktif** (`demo/keluarga-contoh.ged`, keluarga "Santoso", 14 orang, 4 generasi). Anda bisa mengikuti panduan ini dengan membuka file itu sendiri. Gambar dibuat otomatis oleh `npm run docs`, jadi selalu sesuai dengan versi aplikasi saat ini.
 
+## Video demo
+
+[![Tonton video demo SambungDulur](video/poster.jpg)](video/sambungdulur-demo.mp4)
+
+**[▶ Tonton video demo (3 menit 20 detik)](video/sambungdulur-demo.mp4)**: rekaman aplikasi sungguhan dengan narasi suara Microsoft Andika dan subtitle ([`.srt`](video/sambungdulur-demo.id.srt)). Naskah dan cara membuat ulang: [video/README.md](video/README.md).
+
 **Daftar isi**
 1. [Memulai](#1-memulai)
 2. [Mengenal layar](#2-mengenal-layar)
@@ -52,6 +58,7 @@ Aplikasi dibuka dengan pohon awal tiga orang (saya, ayah, ibu) dan "Saya" sudah 
 | 8 | **Tata letak manual** | Menggeser kartu dan garis secara manual. |
 | 9 | **Kartu orang** | Klik/ketuk untuk memilih. Kartu terpilih diberi sorotan hijau, dan garis keturunannya ikut menyala. Cincin foto: **biru = laki-laki, magenta = perempuan, ungu putus-putus = lainnya**. |
 | 10 | **Kontrol kanvas** | Pusatkan pohon, perbesar, perkecil. Roda mouse, seret, dan cubit (pinch) juga bekerja. |
+| 11 | **Panduan (?)** | Membuka panduan ini di GitHub (butuh internet; aplikasi sendiri tetap berjalan luring). |
 
 Di bagian bawah kiri kanvas ada keterangan **"3/3 tampil"** (jumlah orang yang terlihat dari seluruh pohon), orang fokus, legenda warna cincin, dan persentase zoom.
 
@@ -387,7 +394,7 @@ Ketiganya adalah ekspor `Seluruh keluarga yang terhubung` dari pohon contoh.
 
 ## 12. Bahasa
 
-Bahasa bawaan adalah **Indonesia**. Pilih **Basa Jawa** atau **English** di *Pengaturan pohon → Bahasa* (di layar lebar ≥1600 px juga ada pemilih di toolbar, dan di ponsel ada di menu ⋯).
+Bahasa bawaan adalah **Indonesia**. Pilih **Basa Jawa** atau **English** di *Pengaturan pohon → Bahasa* (di layar lebar ≥1700 px juga ada pemilih di toolbar, dan di ponsel ada di menu ⋯).
 
 ![Bahasa Jawa](img/23-bahasa-jawa.png)
 

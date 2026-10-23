@@ -119,6 +119,7 @@ async function makeAvatar(page, file) {
     { loc: tid(page, 'btn-manual'), n: 8 },
     { loc: card(page, 'Saya'), n: 9 },
     { loc: page.locator('.zoom-controls'), n: 10, pos: 'tl' },
+    { loc: tid(page, 'btn-help'), n: 11 },
   ]);
 
   // Edit person

@@ -1,0 +1,66 @@
+{
+  "voice": "Microsoft Andika",
+  "note": "'speak' is what the voice reads (foreign terms spelled phonetically); 'text' is the subtitle shown to viewers.",
+  "scenes": [
+    {
+      "id": "01-pembuka",
+      "caption": "SambungDulur: pohon keluarga luring",
+      "text": "Menyusun silsilah keluarga seharusnya tidak perlu akun, tidak perlu server, dan tidak perlu mengunggah data pribadi. Itulah SambungDulur: pembuat pohon keluarga yang berjalan sepenuhnya di perangkat Anda.",
+      "speak": "Menyusun silsilah keluarga seharusnya tidak perlu akun, tidak perlu server, dan tidak perlu mengunggah data pribadi. Itulah Sambung Dulur: pembuat pohon keluarga yang berjalan sepenuhnya di perangkat Anda."
+    },
+    {
+      "id": "02-layar",
+      "caption": "Mengenal layar",
+      "text": "Layarnya sederhana. Di kiri ada panel untuk mengubah data orang yang dipilih. Di atas ada tombol buka, simpan, ekspor, pencarian, dan pengaturan. Di kanvas, cincin biru menandai laki-laki, magenta perempuan, dan ungu putus-putus untuk lainnya.",
+      "speak": "Layarnya sederhana. Di kiri ada panel untuk mengubah data orang yang dipilih. Di atas ada tombol buka, simpan, ekspor, pencarian, dan pengaturan. Di kanvas, cincin biru menandai laki-laki, magenta perempuan, dan ungu putus-putus untuk lainnya."
+    },
+    {
+      "id": "03-ubah-tambah",
+      "caption": "Ubah data · Tambah pasangan dan anak",
+      "text": "Pilih seseorang, tekan Ubah data, isi nama dan tanggal lahir, lalu simpan. Kartu langsung berubah. Untuk menumbuhkan pohon, tambahkan orang tua, saudara, pasangan, atau anak. Saat menambah anak, Anda memilih: bersama pasangan yang ada, dengan pasangan baru, atau orang tua tunggal.",
+      "speak": "Pilih seseorang, tekan Ubah data, isi nama dan tanggal lahir, lalu simpan. Kartu langsung berubah. Untuk menumbuhkan pohon, tambahkan orang tua, saudara, pasangan, atau anak. Saat menambah anak, Anda memilih: bersama pasangan yang ada, dengan pasangan baru, atau orang tua tunggal."
+    },
+    {
+      "id": "04-foto",
+      "caption": "Foto dalam lingkaran",
+      "text": "Foto bisa dipotong dan dipasang dalam lingkaran. Fotonya disimpan hanya di perangkat Anda.",
+      "speak": "Foto bisa dipotong dan dipasang dalam lingkaran. Fotonya disimpan hanya di perangkat Anda."
+    },
+    {
+      "id": "05-impor",
+      "caption": "Buka GEDCOM atau cadangan MyHeritage: dibaca lokal",
+      "text": "Sudah punya berkas silsilah? Buka file GEDCOM, atau cadangan MyHeritage Family Tree Builder. Aplikasi membacanya di browser, tidak mengunggah apa pun, dan tag yang tidak ditampilkan tetap dipertahankan. Hanya bagian yang Anda ubah yang ditulis ulang.",
+      "speak": "Sudah punya berkas silsilah? Buka file Ged Kom, atau cadangan Mai Heritij Fémili Tri Bilder. Aplikasi membacanya di browser, tidak mengunggah apa pun, dan bagian yang tidak ditampilkan tetap dipertahankan. Hanya bagian yang Anda ubah yang ditulis ulang."
+    },
+    {
+      "id": "06-generasi-cari",
+      "caption": "Atur generasi · Cari dengan Ctrl+F",
+      "text": "Pohon besar tetap nyaman dilihat. Atur berapa generasi leluhur dan keturunan yang ditampilkan di sekitar orang pilihan. Butuh orang tertentu? Tekan Ctrl+F, ketik sebagian nama, tahun, atau tempat, lalu lompat langsung ke kartunya.",
+      "speak": "Pohon besar tetap nyaman dilihat. Atur berapa generasi leluhur dan keturunan yang ditampilkan di sekitar orang pilihan. Butuh orang tertentu? Tekan kontrol F, ketik sebagian nama, tahun, atau tempat, lalu lompat langsung ke kartunya."
+    },
+    {
+      "id": "07-tampilan",
+      "caption": "Pengaturan · Tema gelap · Tata letak manual",
+      "text": "Tampilan bisa disesuaikan: format tanggal, ukuran huruf, kolom kartu, bingkai, dan tema gelap. Untuk penyesuaian halus, gunakan tata letak manual dan geser kartu atau garis sesuka Anda.",
+      "speak": "Tampilan bisa disesuaikan: format tanggal, ukuran huruf, kolom kartu, bingkai, dan tema gelap. Untuk penyesuaian halus, gunakan tata letak manual dan geser kartu atau garis sesuka Anda."
+    },
+    {
+      "id": "08-simpan-ekspor",
+      "caption": "Simpan .sambung · GEDCOM · PNG Ringkas / Normal / Rinci · Dokumen teks",
+      "text": "Simpan pekerjaan sebagai file titik sambung, yang bisa dibuka ulang persis seperti sebelumnya. Ekspor ke GEDCOM untuk program lain. Ekspor gambar PNG dalam tiga tingkat rincian: ringkas, normal, atau rinci. Dan jadikan dokumen silsilah teks, lengkap dengan penomoran leluhur dan indeks nama.",
+      "speak": "Simpan pekerjaan sebagai file titik sambung, yang bisa dibuka ulang persis seperti sebelumnya. Ekspor ke Ged Kom untuk program lain. Ekspor gambar Pi En Ji dalam tiga tingkat rincian: ringkas, normal, atau rinci. Dan jadikan dokumen silsilah teks, lengkap dengan penomoran leluhur dan indeks nama."
+    },
+    {
+      "id": "09-bahasa-ponsel",
+      "caption": "Indonesia · Jawa · English · Nyaman di ponsel",
+      "text": "Tersedia dalam Bahasa Indonesia, Jawa, dan Inggris. Nyaman di ponsel, dan bisa dipasang sebagai aplikasi sehingga tetap berjalan tanpa internet.",
+      "speak": "Tersedia dalam Bahasa Indonesia, Jawa, dan Inggris. Nyaman di ponsel, dan bisa dipasang sebagai aplikasi sehingga tetap berjalan tanpa internet."
+    },
+    {
+      "id": "10-penutup",
+      "caption": "Tanpa akun. Tanpa unggah. github.com/abdurrm/sambungdulur",
+      "text": "SambungDulur. Tanpa akun, tanpa unggah. Panduan lengkap dan kode sumbernya ada di GitHub. Simpan cadangan Anda secara berkala, dan mulailah menyusun silsilah keluarga.",
+      "speak": "Sambung Dulur. Tanpa akun, tanpa unggah. Panduan lengkap dan kode sumbernya ada di Git Hab. Simpan cadangan Anda secara berkala, dan mulailah menyusun silsilah keluarga."
+    }
+  ]
+}

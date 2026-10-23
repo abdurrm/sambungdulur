@@ -21,7 +21,7 @@ Tes data nyata dilewati otomatis bila `local-test-data/` tidak ada (misalnya di 
 ## 2. E2E (Playwright, build produksi via `vite preview`) — `npx playwright test`
 
 ```
-12 passed (~30s)
+14 passed (~33s)
 ```
 
 | Tes | Membuktikan |
@@ -36,10 +36,12 @@ Tes data nyata dilewati otomatis bila `local-test-data/` tidak ada (misalnya di 
 | zoom buttons respect limits and centre works | zoom in/out hingga batas, center |
 | works offline as an installable PWA | manifest standalone + ikon 512, service worker mengontrol halaman, reload saat offline tetap memuat pohon |
 | mobile layout… @mobile | 390×844: tanpa overflow horizontal, tap memilih orang, bottom sheet & menu "lainnya" |
+| header toolbar never overflows… | toolbar tidak meluap pada 9 lebar layar (1100–2560 px) × 3 bahasa |
+| help and source links point to the public repository | tombol Panduan dan tautan sumber menunjuk ke repositori GitHub, tetap terlihat |
 | a freshly imported tree is fitted into view | impor 14 orang: semua kartu berada di dalam kanvas (regresi bug impor tanpa pemusatan) |
 | defaults to Indonesian and switches… | default `lang=id` (Buka, "Saya", "Saudara dari Saya"), Jawa ("Bukak", "Bojoné …"), Inggris bertahan setelah reload, dokumen teks dalam bahasa Indonesia |
 
-Bug nyata yang ditemukan saat uji/pembuatan dokumentasi dan diperbaiki: (a) setelah impor, tampilan tidak dipusatkan (urutan `pendingCenter` salah); (b) di layar 390 px tombol ⋯ terdorong keluar layar karena kolom judul terlalu lebar (asersi posisi tombol kini ada di tes mobile); (c) toolbar desktop 1400 px terpotong oleh pemilih bahasa (kini disembunyikan di bawah 1600 px; bahasa tetap ada di Pengaturan pohon). Ditemukan E2E sebelumnya: (1) memilih Hari/Bulan sebelum Tahun menghapus pilihan; (2) zoom berulang dihitung dari skala yang sedang dianimasikan; (3) `useState` dipanggil setelah `return` bersyarat pada input tanggal.
+Bug nyata yang ditemukan saat uji/pembuatan dokumentasi dan diperbaiki: (a) setelah impor, tampilan tidak dipusatkan (urutan `pendingCenter` salah); (b) di layar 390 px tombol ⋯ terdorong keluar layar karena kolom judul terlalu lebar (asersi posisi tombol kini ada di tes mobile); (c) toolbar meluap pada layar 1100–1920 px dengan label berbahasa Indonesia/Jawa (tombol sekunder kini ikon saja dengan tooltip, pemilih bahasa di header hanya ≥1700 px, penanda status menyusut dengan elipsis; dijaga tes luapan 9 lebar × 3 bahasa). Tes "manual layout" yang ikut goyah karena animasi panel 0,2 detik kini menunggu animasi selesai. Ditemukan E2E sebelumnya: (1) memilih Hari/Bulan sebelum Tahun menghapus pilihan; (2) zoom berulang dihitung dari skala yang sedang dianimasikan; (3) `useState` dipanggil setelah `return` bersyarat pada input tanggal.
 
 ## 3. Bukti manual — dua tab browser Orca
 

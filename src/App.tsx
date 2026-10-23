@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { unzipSync } from 'fflate';
 import {
-  Download, FolderOpen, Moon, Save, Search, Settings2, Sun, LayoutTemplate, RotateCcw, ZoomIn, ZoomOut, Maximize, MoreHorizontal, MonitorDown,
+  CircleHelp, Download, FolderOpen, Moon, Save, Search, Settings2, Sun, LayoutTemplate, RotateCcw, ZoomIn, ZoomOut, Maximize, MoreHorizontal, MonitorDown,
 } from 'lucide-react';
 import type { PersonFields, TreeDoc, TreeSettings } from './model/types';
 import { DEFAULT_SETTINGS } from './model/types';
@@ -25,6 +25,7 @@ import { GenerationControl, LanguageSelect, SettingsMenu } from './ui/SettingsMe
 import { SearchPanel } from './ui/SearchPanel';
 import { ExportDialog } from './ui/ExportDialog';
 import { OpenDialog, type OpenReport } from './ui/OpenDialog';
+import { GUIDE_URL } from './links';
 import { initialLang, LANG_KEY, setLang as setI18nLang, t, type Lang } from './i18n';
 
 type Dialog =
@@ -530,6 +531,9 @@ export default function App() {
           >
             {doc.settings.theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
           </button>
+          <a className="tool-btn hide-mobile" href={GUIDE_URL} target="_blank" rel="noopener noreferrer" title={t('helpTitle')} aria-label={t('helpTitle')} data-testid="btn-help">
+            <CircleHelp size={18} />
+          </a>
           {installEvt && (
             <button className="tool-btn hide-mobile" onClick={() => installEvt.prompt().then(() => setInstallEvt(null))} title={t('installApp')}>
               <MonitorDown size={18} /> <span className="label">{t('install')}</span>
@@ -656,6 +660,7 @@ export default function App() {
               <button className="btn" onClick={() => patchSettings({ theme: doc.settings.theme === 'light' ? 'dark' : 'light' })}>
                 {doc.settings.theme === 'light' ? <Moon size={16} /> : <Sun size={16} />} {doc.settings.theme === 'light' ? t('darkTheme') : t('lightTheme')}
               </button>
+              <a className="btn" href={GUIDE_URL} target="_blank" rel="noopener noreferrer" data-testid="more-help"><CircleHelp size={16} /> {t('help')}</a>
               {installEvt && <button className="btn" onClick={() => installEvt.prompt().then(() => setInstallEvt(null))}><MonitorDown size={16} /> {t('installApp')}</button>}
               <button className="btn danger" onClick={() => (setPopover(null), setDialog({ kind: 'confirmReset' }))}><RotateCcw size={16} /> {t('resetTree')}</button>
             </div>

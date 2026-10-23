@@ -1,5 +1,6 @@
 import type { DateFormat, FontSize, TreeSettings } from '../model/types';
 import { LANGS, t, type Lang } from '../i18n';
+import { REPO_URL } from '../links';
 
 const DATE_FORMATS: DateFormat[] = ['MM/DD/YYYY', 'MM.DD.YYYY', 'DD/MM/YYYY', 'DD.MM.YYYY', 'YYYY'];
 
@@ -133,7 +134,8 @@ export function SettingsMenu(props: {
         </div>
       </div>
       {large && <p className="note">{t('largeNote')}</p>}
-      <div className="actions" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+      <div className="actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, gap: 8 }}>
+        <a className="note" style={{ color: 'var(--info)' }} href={REPO_URL} target="_blank" rel="noopener noreferrer" data-testid="link-source">{t('sourceCode')}</a>
         <button className="btn" style={{ width: 'auto' }} onClick={props.onClose}>{t('close')}</button>
       </div>
     </div>

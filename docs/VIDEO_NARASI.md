@@ -1,5 +1,7 @@
 # Narasi Video: "SambungDulur dalam 3 Menit"
 
+> **Video sudah dibuat:** [`video/sambungdulur-demo.mp4`](video/sambungdulur-demo.mp4) (3 menit 20 detik, suara Microsoft Andika). Naskah yang dipakai pada video final ada di [`../scripts/video/scenes.json`](../scripts/video/scenes.json); dokumen ini adalah rancangan awal dan penjelasan adegannya. Cara membuat ulang: [video/README.md](video/README.md).
+
 **Durasi:** sekitar 3 menit di layar. Narasi ±290 kata (≈2 menit bicara pada 145 kata/menit); sisanya jeda untuk memperlihatkan aksi di layar.
 **Bahasa:** Indonesia, nada hangat dan lugas
 **Bahan visual:** screenshot pada `docs/img/` (nomor di kolom *Visual*), atau rekaman layar dengan langkah yang sama di data contoh `docs/demo/keluarga-contoh.ged`

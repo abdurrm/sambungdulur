@@ -4,7 +4,14 @@
 
 > "Sambung dulur" (Jawa): menyambung tali persaudaraan.
 
-> **Panduan bergambar:** [docs/PANDUAN.md](docs/PANDUAN.md) berisi langkah demi langkah dengan screenshot beranotasi. Naskah video singkat ada di [docs/VIDEO_NARASI.md](docs/VIDEO_NARASI.md). Data contoh fiktif: [docs/demo/](docs/demo/).
+**Coba langsung:** https://abdurrm.github.io/sambungdulur/ (tanpa pemasangan; bisa dipasang sebagai aplikasi dan dipakai luring).
+
+## Video dan panduan
+
+[![Tonton video demo SambungDulur](docs/video/poster.jpg)](docs/video/sambungdulur-demo.mp4)
+
+**[▶ Tonton video demo](docs/video/sambungdulur-demo.mp4)** (3 menit 20 detik, narasi suara Microsoft Andika, [subtitle](docs/video/sambungdulur-demo.id.srt)) · **[Panduan bergambar](docs/PANDUAN.md)** (langkah demi langkah dengan screenshot beranotasi) · [Naskah video](docs/VIDEO_NARASI.md) · [Data contoh fiktif](docs/demo/)
+
 
 ## Gambaran umum
 
@@ -111,6 +118,12 @@ src/
 tests/unit    Vitest      tests/e2e   Playwright      tests/fixtures  GEDCOM sintetis
 ```
 
+## Berkontribusi
+
+Laporan bug, perbaikan, terjemahan, dan dokumentasi sangat diterima. Baca [CONTRIBUTING.md](CONTRIBUTING.md) terlebih dahulu. Aturan terpenting: **jangan pernah mengunggah data keluarga nyata** ke commit, issue, atau screenshot; pakai data fiktif di `docs/demo`.
+
 ## Lisensi & atribusi
+
+Proyek ini dirilis di bawah **[lisensi MIT](LICENSE)** © 2026 Abdur Rohman Muhammad.
 
 Kode ditulis untuk proyek ini; tidak ada kode, teks, atau gambar dari family-tree-builder.com yang disalin. Gaya visual terinspirasi dari skill *archify* (MIT). Ikon dari [Lucide](https://lucide.dev) (ISC).

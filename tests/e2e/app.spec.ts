@@ -207,6 +207,8 @@ test.describe('family tree editor', () => {
     await expect(page.getByTestId('manual-continue')).toBeEnabled({ timeout: 6000 });
     await page.getByTestId('manual-continue').click();
     await expect(page.getByTestId('manual-save')).toBeDisabled();
+    // The editor panel slides away (0.2s) and the cards shift with it; wait before measuring.
+    await page.waitForTimeout(500);
     const handle = card(page, 'My Father').locator('.move-handle rect');
     const hb = (await handle.boundingBox())!;
     await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
@@ -316,5 +318,42 @@ test('a freshly imported tree is fitted into view', async ({ page }) => {
     expect(c.right).toBeLessThanOrEqual(box!.x + box!.width + 1);
     expect(c.top).toBeGreaterThanOrEqual(box!.y - 1);
     expect(c.bottom).toBeLessThanOrEqual(box!.y + box!.height + 1);
+  }
+});
+
+test('help and source links point to the public repository', async ({ page }) => {
+  await fresh(page);
+  const help = page.getByTestId('btn-help');
+  await expect(help).toHaveAttribute('href', 'https://github.com/abdurrm/sambungdulur/blob/main/docs/PANDUAN.md');
+  await expect(help).toHaveAttribute('target', '_blank');
+  await expect(help).toHaveAttribute('rel', /noopener/);
+  // Still on screen at a typical laptop width (toolbar must not clip it).
+  const b = (await help.boundingBox())!;
+  expect(b.x + b.width).toBeLessThanOrEqual(1400);
+  await page.getByTestId('btn-settings').click();
+  await expect(page.getByTestId('link-source')).toHaveAttribute('href', 'https://github.com/abdurrm/sambungdulur');
+});
+
+test('header toolbar never overflows at common widths and in every language', async ({ page }) => {
+  await fresh(page);
+  for (const lang of ['id', 'jv', 'en']) {
+    await page.evaluate((l) => localStorage.setItem('sambungdulur.lang', l), lang);
+    await page.reload();
+    await expect(page.getByTestId('tree-canvas')).toBeVisible();
+    for (const width of [1100, 1280, 1366, 1440, 1536, 1600, 1700, 1920, 2560]) {
+      await page.setViewportSize({ width, height: 900 });
+      const m = await page.evaluate(() => {
+        const bar = document.querySelector('.toolbar')!;
+        const header = document.querySelector('.header')!;
+        const last = [...bar.querySelectorAll('.tool-btn')].filter((b) => (b as HTMLElement).offsetParent).pop()!;
+        return {
+          over: Math.max(header.scrollWidth - header.clientWidth, bar.scrollWidth - bar.clientWidth),
+          lastRight: last.getBoundingClientRect().right,
+          vw: window.innerWidth,
+        };
+      });
+      expect(m.over, 'header overflow at ' + width + ' (' + lang + ')').toBeLessThanOrEqual(1);
+      expect(m.lastRight, 'last button at ' + width + ' (' + lang + ')').toBeLessThanOrEqual(m.vw);
+    }
   }
 });
