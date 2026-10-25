@@ -1017,3 +1017,63 @@ test('picking another person shows the sheet from its top @mobile', async ({ pag
   await expect(page.getByTestId('selected-name')).toHaveText('My Mother');
   await expect.poll(() => page.locator('.sheet-body').evaluate((e) => e.scrollTop)).toBe(0);
 });
+
+/** RGB of one pixel of an exported image, decoded by the browser. */
+async function imagePixel(page: Page, file: string, mime: string, at: 'corner' | { x: number; y: number }) {
+  const b64 = fs.readFileSync(file).toString('base64');
+  return page.evaluate(
+    async ([data, type, pos]) => {
+      const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+      const bmp = await createImageBitmap(new Blob([bytes], { type }));
+      const c = new OffscreenCanvas(bmp.width, bmp.height);
+      const ctx = c.getContext('2d')!;
+      ctx.drawImage(bmp, 0, 0);
+      const p = pos === 'corner' ? { x: 2, y: 2 } : (pos as { x: number; y: number });
+      return [...ctx.getImageData(p.x, p.y, 1, 1).data];
+    },
+    [b64, mime, at] as const,
+  );
+}
+
+async function exportImage(page: Page, kind: 'png' | 'jpeg' | 'svg', bg?: string) {
+  await page.getByTestId('btn-export').click();
+  await page.getByTestId(`export-kind-${kind}`).click();
+  if (bg) await page.getByTestId(`export-bg-${bg}`).click();
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-run').click()]);
+  return (await dl.path())!;
+}
+
+test('Nila & Sogan colours on screen and in PNG, JPEG and SVG exports', async ({ page }) => {
+  await fresh(page);
+  const bgOf = (sel: string) => page.locator(sel).first().evaluate((e) => getComputedStyle(e).backgroundColor);
+  // Primary button and the selected card are Nila; the app background is warm stone.
+  expect(await bgOf('[data-testid="btn-export"]')).toBe('rgb(55, 48, 163)');
+  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(250, 250, 249)');
+  await expect(page.locator('g.person[aria-current="true"] .card-bg')).toHaveAttribute('stroke', '#4338ca');
+  // Search matches and the unsaved badge are Sogan.
+  await page.getByTestId('btn-search').click();
+  await page.getByTestId('search-input').fill('mother');
+  await page.getByTestId('search-input').press('Enter');
+  await card(page, 'Me').locator('.card-bg').click({ position: { x: 20, y: 20 } });
+  await expect(card(page, 'My Mother').locator('.card-bg')).toHaveAttribute('stroke', '#b45309');
+  await page.getByTestId('add-sibling').click();
+  await expect(page.getByTestId('status-chip')).toHaveCSS('color', 'rgb(180, 83, 9)');
+  // The "other" ring is teal, dashed.
+  const ringColours = await page.locator('circle.ring').evaluateAll((els) => [...new Set(els.map((e) => e.getAttribute('stroke')))]);
+
+  const svg = fs.readFileSync(await exportImage(page, 'svg', 'theme'), 'utf8');
+  expect(svg).toContain('fill="#fafaf9"');
+  for (const c of ringColours) expect(svg).toContain(`stroke="${c}"`);
+  expect(svg).toContain('stroke="#0d9488"'); // legend: other
+  expect(svg).not.toMatch(/#059669|#7c3aed|#f8fafc/);
+  const png = await imagePixel(page, await exportImage(page, 'png', 'theme'), 'image/png', 'corner');
+  expect(png.slice(0, 3)).toEqual([250, 250, 249]);
+  const jpeg = await imagePixel(page, await exportImage(page, 'jpeg', 'theme'), 'image/jpeg', 'corner');
+  for (const [i, v] of [250, 250, 249].entries()) expect(Math.abs(jpeg[i] - v)).toBeLessThanOrEqual(3);
+
+  // Dark theme: same tokens on screen and in the export.
+  await page.getByTestId('btn-theme').click();
+  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(12, 10, 9)');
+  const dark = await imagePixel(page, await exportImage(page, 'png', 'theme'), 'image/png', 'corner');
+  expect(dark.slice(0, 3)).toEqual([12, 10, 9]);
+});

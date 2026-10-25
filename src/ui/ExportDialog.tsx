@@ -12,11 +12,11 @@ import { t, type Key } from '../i18n';
 type Kind = 'png' | 'jpeg' | 'svg' | 'ged' | 'txt';
 
 const KINDS: { kind: Kind; label: Key; desc: Key; color: string }[] = [
-  { kind: 'png', label: 'kPng', desc: 'kPngDesc', color: '#6d28d9' },
+  { kind: 'png', label: 'kPng', desc: 'kPngDesc', color: '#4338ca' },
   { kind: 'jpeg', label: 'kJpeg', desc: 'kJpegDesc', color: '#0369a1' },
-  { kind: 'svg', label: 'kSvg', desc: 'kSvgDesc', color: '#c2410c' },
-  { kind: 'ged', label: 'kGed', desc: 'kGedDesc', color: '#047857' },
-  { kind: 'txt', label: 'kTxt', desc: 'kTxtDesc', color: '#475569' },
+  { kind: 'svg', label: 'kSvg', desc: 'kSvgDesc', color: '#b45309' },
+  { kind: 'ged', label: 'kGed', desc: 'kGedDesc', color: '#0f766e' },
+  { kind: 'txt', label: 'kTxt', desc: 'kTxtDesc', color: '#57534e' },
 ];
 
 const DENSITY_LABEL: Record<Density, Key> = { compact: 'compact', normal: 'normal', detailed: 'detailed' };

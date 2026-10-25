@@ -194,7 +194,7 @@ function Card(props: {
         <g key="mv" className="move-handle" data-action="move" data-person-id={n.id} aria-label={t('moveHandle')}>
           <title>{t('moveHandle')}</title>
           <rect x={n.x - 22} y={n.y - 12} width={44} height={24} rx={12} fill={pal.handle} />
-          <text x={n.x} y={n.y} dy="0.35em" textAnchor="middle" fontFamily={FONT_MONO} fontSize={13} fill="#fff">
+          <text x={n.x} y={n.y} dy="0.35em" textAnchor="middle" fontFamily={FONT_MONO} fontSize={13} fill={pal.onHandle}>
             ↔
           </text>
         </g>,
