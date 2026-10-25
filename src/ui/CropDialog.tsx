@@ -6,7 +6,7 @@ const STAGE = 280;
 const OUT = 512;
 
 /** Square photo cropper: drag to pan, slider to zoom. Produces a 512×512 JPEG. */
-export function CropDialog(props: { file: File; onDone: (blob: Blob) => void; onCancel: () => void }) {
+export function CropDialog(props: { file: Blob; onDone: (blob: Blob) => void; onCancel: () => void }) {
   const [url] = useState(() => URL.createObjectURL(props.file));
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   const [error, setError] = useState('');

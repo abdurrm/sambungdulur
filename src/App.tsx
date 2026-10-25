@@ -96,7 +96,7 @@ type Dialog =
   | { kind: 'confirmResetManual' }
   | { kind: 'message'; title: string; text: string }
   | { kind: 'manualInfo' }
-  | { kind: 'crop'; file: File; personId: string }
+  | { kind: 'crop'; file: Blob; personId: string }
   | { kind: 'export' }
   | { kind: 'open' }
   | { kind: 'shortcuts' }
@@ -107,6 +107,8 @@ const PANEL_KEY = 'sambungdulur.panel';
 /** Desktop editor pinned as a right-hand panel, and that panel's width. */
 const PIN_KEY = 'sambungdulur.editorPin';
 const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
+/** Photos are shrunk to this longest side before the crop dialog (a 12 MP camera photo would be slow there). */
+const CROP_SOURCE_MAX = 2048;
 
 async function initSql() {
   const [{ default: initSqlJs }, { default: wasmUrl }] = await Promise.all([
@@ -192,10 +194,11 @@ export default function App() {
   });
   useEffect(() => localStorage.setItem(PIN_KEY, JSON.stringify(pin)), [pin]);
   const pinned = wide && pin.pinned;
-  // The desktop edit form reports unsaved changes; leaving it asks Save / Discard / Cancel first.
-  const [formDirty, setFormDirty] = useState(false);
+  // The open desktop edit form: leaving it with changes asks Save / Discard / Cancel first.
   const formControl = useRef<FormControl | null>(null);
-  const onDirtyChange = useCallback((dirty: boolean) => setFormDirty(dirty), []);
+  // The card menu's photo action (and its shortcut) opens this picker: the camera on touch screens.
+  const photoInput = useRef<HTMLInputElement>(null);
+  const photoTarget = useRef<string | null>(null);
   const [popover, setPopover] = useState<null | 'settings' | 'search' | 'more' | 'gens'>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
   // Screen-reader announcements (polite live region); toasts announce themselves.
@@ -446,14 +449,15 @@ export default function App() {
     pendingCenter.current = id;
   };
 
+  const formDirty = () => wide && !!formControl.current?.isDirty();
   /** Runs `next` now, or after Save / Discard when the desktop edit form has unsaved changes. */
   const whenClean = (next: () => void) => {
-    if (!wide || !formDirty || !formControl.current) next();
+    if (!formDirty()) next();
     else setDialog({ kind: 'unsaved', next });
   };
   /** Runs one person action; shared by the editor panel and the card menus. */
   const doAction = (action: PersonActionId, id: string, opts: { focus?: boolean } = {}) => {
-    if (!(action === 'edit' && id === selectedId) && wide && formDirty) {
+    if (!(action === 'edit' && id === selectedId) && formDirty()) {
       whenClean(() => doAction(action, id, opts));
       return;
     }
@@ -464,6 +468,12 @@ export default function App() {
         setEditRequest({ id, n: Date.now(), focus: opts.focus });
         if (narrow) setSheet('full');
         else if (viewport.layout === 'medium') setDrawerOpen(true);
+        break;
+      case 'photo':
+        setSelectedId(id);
+        photoTarget.current = id;
+        // Still inside the click (or key press) that asked for it, so the browser lets the picker open.
+        photoInput.current?.click();
         break;
       case 'addParents':
         run(() => addParents(doc, id), true);
@@ -674,13 +684,20 @@ export default function App() {
     return { title: t('rLinked'), lines: [t('rScanned', { n: files.length }), t('rLinkedN', { n: linked }), t('rMissing', { n: missing })] };
   };
 
-  const onUploadImage = (file: File) => {
-    if (!selectedId) return;
+  /** Camera, gallery or upload: the same path (25 MB limit, shrink, crop dialog, one undo step). */
+  const onUploadImage = async (file: File, personId = selectedId) => {
+    if (!personId) return;
     if (file.size > MAX_IMAGE_BYTES) {
       setDialog({ kind: 'message', title: t('fileTooLarge'), text: t('fileTooLargeMsg') });
       return;
     }
-    setDialog({ kind: 'crop', file, personId: selectedId });
+    try {
+      const { shrinkImage } = await import('./io/shrinkImage');
+      const { blob } = await shrinkImage(file, CROP_SOURCE_MAX, 0.92);
+      setDialog({ kind: 'crop', file: blob, personId });
+    } catch {
+      setDialog({ kind: 'message', title: t('notPossible'), text: t('badImage') });
+    }
   };
   const applyCroppedImage = async (personId: string, blob: Blob) => {
     let n = 1;
@@ -693,6 +710,7 @@ export default function App() {
       media: { ...d.media, [id]: { id, fileName: `photo-${personId}-${n}.jpg`, mime: 'image/jpeg', sourcePath: '', available: true } },
     }));
     setDialog(null);
+    notify(t('toastPhotoChanged', { name: displayName(doc.persons[personId], doc.settings) }), { action: { label: t('undo'), onClick: () => undoRef.current() } });
   };
 
   const toggleManual = () => {
@@ -729,7 +747,7 @@ export default function App() {
 
   // ---- Keyboard commands (see ui/shortcuts.ts) ------------------------------------------
   const selectAndShow = (id: string) => {
-    if (id !== selectedId && wide && formDirty) return whenClean(() => selectAndShow(id));
+    if (id !== selectedId && formDirty()) return whenClean(() => selectAndShow(id));
     setSelectedId(id);
     announce(t('a11ySelected', { who: personLabel(doc, id) }));
     if (!wide) requestAnimationFrame(() => canvas.current?.ensureVisible(id));
@@ -859,8 +877,8 @@ export default function App() {
     onUploadImage,
     onDeleteImage: () => selectedId && setDialog({ kind: 'confirmDeleteImage', personId: selectedId }),
     onFocus: () => selectedId && focusOn(selectedId),
-    onDirtyChange,
     formControl,
+    coarse: viewport.pointer === 'coarse',
   };
   const statusText = `${dirty ? t('unsaved') : t('saved')} · ${t('people', { n: doc.order.length })}`;
   const missingMedia = Object.values(doc.media).filter((m) => !m.available).length;
@@ -964,7 +982,7 @@ export default function App() {
               </button>
             }
           >
-            <SettingsMenu settings={doc.settings} onChange={patchSettings} onClose={() => setPopover(null)} lang={lang} onLang={changeLang} onBackground={setBackground} onBackgroundImage={setBackgroundImage} />
+            <SettingsMenu settings={doc.settings} onChange={patchSettings} onClose={() => setPopover(null)} lang={lang} onLang={changeLang} onBackground={setBackground} onBackgroundImage={setBackgroundImage} coarse={viewport.pointer === 'coarse'} />
           </ToolPopover>
           </Suspense>
           {wide ? (
@@ -1040,7 +1058,7 @@ export default function App() {
           onScale={setScale}
           inset={inset}
           onSelect={(id) => {
-            if (id !== selectedId && wide && formDirty) {
+            if (id !== selectedId && formDirty()) {
               whenClean(() => {
                 setSelectedId(id);
                 setDismissedId(null);
@@ -1167,6 +1185,7 @@ export default function App() {
           personId={cardMenu.id}
           anchor={cardMenu.anchor}
           manualMode={manualMode}
+          coarse={viewport.pointer === 'coarse'}
           onClose={() => setCardMenu(null)}
           onAction={(action, id) => {
             setCardMenu(null);
@@ -1295,6 +1314,19 @@ export default function App() {
         <Toasts />
         {viewport.pointer === 'fine' && <TooltipLayer />}
       </Suspense>
+      <input
+        ref={photoInput}
+        type="file"
+        accept="image/*,.heic,.heif,.webp"
+        capture={viewport.pointer === 'coarse' ? 'environment' : undefined}
+        hidden
+        data-testid="photo-input"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = '';
+          if (file && photoTarget.current) void onUploadImage(file, photoTarget.current);
+        }}
+      />
       <KeyboardShortcuts onCommand={onCommand} hasSelection={!!selectedId && !!doc.persons[selectedId]} />
       <div className="sr-only" role="status" aria-live="polite" data-testid="live-region">
         {announcement}

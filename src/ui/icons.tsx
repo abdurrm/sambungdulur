@@ -58,6 +58,7 @@ const ICONS = {
   focus: Crosshair,
   delete: Trash,
   uploadImage: deferred('Image'),
+  photo: deferred('Camera'),
   deleteImage: Trash,
   // Toolbar and menus
   open: FolderOpen,

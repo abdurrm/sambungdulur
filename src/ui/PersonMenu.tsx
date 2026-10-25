@@ -7,7 +7,7 @@ import { personActionLabel, personActions, type PersonActionId } from '../model/
 /** Anything the menu can be positioned against: the card's ⋯ button, or the pointer for right-click / long-press. */
 export type MenuAnchor = Element | { getBoundingClientRect: () => DOMRect };
 
-const GROUPS: PersonActionId[][] = [['edit'], ['addParents', 'addSibling', 'addPartner', 'addChild'], ['focus'], ['delete']];
+const GROUPS: PersonActionId[][] = [['edit', 'photo'], ['addParents', 'addSibling', 'addPartner', 'addChild'], ['focus'], ['delete']];
 
 /**
  * Card action menu: the same person actions as the editor panel, offered right on the tree.
@@ -18,6 +18,8 @@ export default function PersonMenu(props: {
   personId: string;
   anchor: MenuAnchor;
   manualMode: boolean;
+  /** Touch screen: "Take a photo" instead of "Upload a photo". */
+  coarse?: boolean;
   onAction: (action: PersonActionId, personId: string) => void;
   onClose: () => void;
 }) {
@@ -42,9 +44,9 @@ export default function PersonMenu(props: {
                       onClick={() => props.onAction(id, props.personId)}
                       data-testid={`pm-${id}`}
                     >
-                      <Icon id={id} size={16} />
+                      <Icon id={id === 'photo' && !props.coarse ? 'uploadImage' : id} size={16} />
                       <span className="menu-text">
-                        {personActionLabel(id)}
+                        {personActionLabel(id, { coarse: props.coarse })}
                         {a.reason && <small className="menu-reason" data-testid={`pm-${id}-reason`}>{a.reason}</small>}
                       </span>
                     </Menu.Item>

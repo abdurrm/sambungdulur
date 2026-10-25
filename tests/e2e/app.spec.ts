@@ -696,6 +696,11 @@ test('desktop pop-up: arrows move it without taking focus, Enter edits; closed i
   await page.getByTestId('f-given').fill('Mum');
   await page.getByTestId('f-save').click();
   await expect(page.getByRole('dialog', { name: 'Editor: Mum' })).toBeVisible();
+  // Focus lands on "Edit" instead of being pulled back into the pop-up later.
+  await expect(page.getByTestId('editor-popup').getByTestId('edit-person')).toBeFocused();
+  await page.getByTestId('tree-canvas').focus();
+  await page.waitForTimeout(300);
+  await expect(page.getByTestId('tree-canvas')).toBeFocused();
 
   // Toasts stay clear of the pop-up.
   await page.getByTestId('btn-save').click();
@@ -1636,12 +1641,24 @@ test('desktop: leaving a changed form asks Save, Discard or Cancel', async ({ pa
   await expect(page.getByRole('dialog', { name: 'Editor: My Father' })).toBeVisible();
   await expect(card(page, 'Me')).toBeVisible();
   await expect(card(page, 'Me changed')).toHaveCount(0);
-  // Save keeps them and moves on.
+  // Save keeps them and moves on (to a card the pop-up does not cover, once the view has settled).
   await page.getByTestId('editor-popup').getByTestId('edit-person').click();
   await page.getByTestId('f-given').fill('Dad');
-  await card(page, 'Me').locator('.card-bg').click({ position: { x: 20, y: 20 }, force: true });
+  const popBox = await stableBox(page.getByTestId('editor-popup'));
+  let target = '';
+  for (const name of ['Me', 'My Mother']) {
+    const box = await stableBox(card(page, name).locator('.card-bg'));
+    // A spot of the card left of, or below, the pop-up.
+    const free = box.x + 24 < popBox.x ? { x: Math.min(60, (popBox.x - box.x) / 2), y: box.height / 2 } : box.y + box.height > popBox.y + popBox.height + 24 ? { x: box.width / 2, y: box.height - 12 } : null;
+    if (free && free.y > 30) {
+      target = name;
+      await card(page, name).locator('.card-bg').click({ position: free });
+      break;
+    }
+  }
+  expect(target).not.toBe('');
   await page.getByTestId('unsaved-save').click();
-  await expect(page.getByRole('dialog', { name: 'Editor: Me' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: `Editor: ${target}` })).toBeVisible();
   await expect(card(page, 'Dad')).toBeVisible();
   // Escape with changes asks too; an unchanged form just closes.
   await page.getByTestId('editor-popup').getByTestId('edit-person').click();
@@ -1696,4 +1713,79 @@ test('desktop: pin turns the pop-up into a resizable right panel that is remembe
   await page.reload();
   await expect(page.getByTestId('editor-popup')).toBeVisible();
   await expect(panel).toHaveCount(0);
+});
+
+test('phones: the Image tab takes a photo with the back camera or picks one; undo restores @mobile', async ({ page }) => {
+  await fresh(page);
+  await card(page, 'Me').locator('.card-bg').tap({ position: { x: 20, y: 20 } });
+  await expect(page.getByTestId('sidebar')).toHaveAttribute('data-snap', 'half');
+  await page.getByTestId('tab-image').tap();
+  const camera = page.getByTestId('camera-image');
+  await expect(camera).toHaveAttribute('capture', 'environment');
+  await expect(camera).toHaveAttribute('accept', 'image/*');
+  await expect(page.locator('label', { has: camera })).toContainText('Take a photo');
+  const gallery = page.getByTestId('upload-image');
+  await expect(gallery).not.toHaveAttribute('capture', /.*/);
+  await expect(page.locator('label', { has: gallery })).toContainText('Choose from gallery');
+  const photo = card(page, 'Me').locator('image');
+  await expect(photo).toHaveCount(0);
+
+  // Cancelling the crop changes nothing.
+  await camera.setInputFiles({ name: 'cam.jpg', mimeType: 'image/jpeg', buffer: await makeImage(page, 4000, 3000, '#7c9a5b') });
+  await expect(page.getByTestId('crop-dialog')).toBeVisible();
+  await page.getByTestId('crop-dialog').getByRole('button', { name: 'Cancel' }).tap();
+  await expect(page.getByTestId('crop-dialog')).toBeHidden();
+  await expect(photo).toHaveCount(0);
+
+  // A 4000 × 3000 camera photo opens the crop dialog without error and lands on the card.
+  await camera.setInputFiles({ name: 'cam.jpg', mimeType: 'image/jpeg', buffer: await makeImage(page, 4000, 3000, '#7c9a5b') });
+  await expect(page.getByTestId('crop-apply')).toBeEnabled();
+  await expect(page.getByTestId('crop-dialog')).not.toContainText(/could not|tidak bisa/i);
+  await page.getByTestId('crop-apply').tap();
+  await expect(photo).toHaveCount(1);
+  // The "Undo" toast brings the old (empty) photo back.
+  await expect(page.getByTestId('toast')).toContainText('Photo of Me updated');
+  await page.getByTestId('toast-action').tap();
+  await expect(photo).toHaveCount(0);
+
+  // The card menu offers "Take a photo" on touch screens; the picker it opens uses the camera.
+  const bg = card(page, 'My Father').locator('.card-bg');
+  await stableBox(bg);
+  const b = (await bg.boundingBox())!;
+  const opts = { pointerType: 'touch', isPrimary: true, pointerId: 9, clientX: b.x + 30, clientY: b.y + 30, bubbles: true, button: 0, buttons: 1 };
+  await bg.dispatchEvent('pointerdown', opts);
+  await page.waitForTimeout(650);
+  await bg.dispatchEvent('pointerup', { ...opts, buttons: 0 });
+  await expect(page.getByTestId('pm-photo')).toContainText('Take a photo');
+  await expect(page.getByTestId('photo-input')).toHaveAttribute('capture', 'environment');
+  await page.keyboard.press('Escape');
+
+  // Canvas background: camera and gallery too.
+  await page.getByTestId('btn-settings').tap();
+  await page.getByTestId('bg-kind-image').tap();
+  await expect(page.getByTestId('bg-camera-input')).toHaveAttribute('capture', 'environment');
+  await expect(page.locator('label', { has: page.getByTestId('bg-image-input') })).toContainText('Choose from gallery');
+});
+
+test('desktop: no camera buttons; the card menu uploads a photo, Ctrl+Z restores the old one', async ({ page }) => {
+  await fresh(page);
+  await page.getByTestId('editor-popup').getByTestId('tab-image').click();
+  await expect(page.getByTestId('camera-image')).toHaveCount(0);
+  await expect(page.getByTestId('upload-image')).toHaveCount(1);
+  await expect(page.getByTestId('photo-input')).not.toHaveAttribute('capture', /.*/);
+  await page.getByTestId('btn-settings').click();
+  await page.getByTestId('bg-kind-image').click();
+  await expect(page.getByTestId('bg-camera-input')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
+  await card(page, 'My Father').locator('.card-bg').click({ button: 'right', force: true });
+  await expect(page.getByTestId('pm-photo')).toContainText('Upload a photo');
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByTestId('pm-photo').click()]);
+  await chooser.setFiles({ name: 'dad.png', mimeType: 'image/png', buffer: await makeImage(page, 900, 700, '#1d3557', 'image/png') });
+  await page.getByTestId('crop-apply').click();
+  const photo = card(page, 'My Father').locator('image');
+  await expect(photo).toHaveCount(1);
+  await page.getByTestId('tree-canvas').focus();
+  await page.keyboard.press('Control+z');
+  await expect(photo).toHaveCount(0);
 });

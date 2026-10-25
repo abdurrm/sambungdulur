@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import type { Theme } from '../model/types';
 import {
   DEFAULT_BACKGROUND,
@@ -90,8 +90,8 @@ export default function BackgroundSettings(props: {
   onChange: (bg: CanvasBackground, coalesceKey?: string) => void;
   /** Shrinks, stores and applies a picture; resolves when done. */
   onImage: (file: File) => Promise<void>;
-  /** Extra picture sources (the camera on touch screens). */
-  imageSources?: (pick: (file: File) => void) => ReactNode;
+  /** Touch screen: "Take a photo" with the camera next to "Choose from gallery". */
+  coarse?: boolean;
 }) {
   const bg = props.value;
   // "Picture" can be picked before a picture exists; the canvas keeps its background until one is chosen.
@@ -119,15 +119,16 @@ export default function BackgroundSettings(props: {
     }
   };
   const patchImage = (patch: Partial<ImageBackground>, key?: string) => bg.kind === 'image' && props.onChange({ ...bg, ...patch }, key);
-  const upload = (label: string) => (
+  const upload = (label: string, camera = false) => (
     <label className={`btn${busy ? ' busy' : ''}`} aria-disabled={busy || undefined}>
       {busy ? t('bgImageBusy') : label}
       <input
         type="file"
-        accept="image/*,.heic,.heif,.webp"
+        accept={camera ? 'image/*' : 'image/*,.heic,.heif,.webp'}
+        capture={camera ? 'environment' : undefined}
         hidden
         disabled={busy}
-        data-testid="bg-image-input"
+        data-testid={camera ? 'bg-camera-input' : 'bg-image-input'}
         onChange={(e) => {
           const file = e.target.files?.[0];
           e.target.value = '';
@@ -208,8 +209,8 @@ export default function BackgroundSettings(props: {
       {kind === 'image' && (
         <>
           <div className="row-inline">
-            {upload(bg.kind === 'image' ? t('bgReplace') : t('bgUpload'))}
-            {props.imageSources?.((file) => void useImage(file))}
+            {props.coarse && upload(t('takePhoto'), true)}
+            {upload(props.coarse ? t('pickFromGallery') : bg.kind === 'image' ? t('bgReplace') : t('bgUpload'))}
           </div>
           {error && <p className="error-text">{error}</p>}
           {bg.kind === 'image' && (

@@ -7,7 +7,7 @@ import { t } from '../i18n';
  * the editor panel, the card context menu and the card "⋯" button.
  * Each action knows whether it is available and, when not, a short translated reason for the user.
  */
-export type PersonActionId = 'edit' | 'addParents' | 'addSibling' | 'addPartner' | 'addChild' | 'focus' | 'delete';
+export type PersonActionId = 'edit' | 'photo' | 'addParents' | 'addSibling' | 'addPartner' | 'addChild' | 'focus' | 'delete';
 
 export interface PersonActionState {
   id: PersonActionId;
@@ -16,7 +16,7 @@ export interface PersonActionState {
   reason?: string;
 }
 
-export const PERSON_ACTION_ORDER: PersonActionId[] = ['edit', 'addParents', 'addSibling', 'addPartner', 'addChild', 'focus', 'delete'];
+export const PERSON_ACTION_ORDER: PersonActionId[] = ['edit', 'photo', 'addParents', 'addSibling', 'addPartner', 'addChild', 'focus', 'delete'];
 
 export function personActions(doc: TreeDoc, personId: string, opts: { manualMode?: boolean } = {}): Record<PersonActionId, PersonActionState> {
   const exists = !!doc.persons[personId];
@@ -27,6 +27,7 @@ export function personActions(doc: TreeDoc, personId: string, opts: { manualMode
   };
   return {
     edit: state('edit'),
+    photo: state('photo'),
     addParents: state('addParents', exists && hasParents(doc, personId) ? t('reasonHasParents') : undefined),
     addSibling: state('addSibling'),
     addPartner: state(
@@ -41,10 +42,13 @@ export function personActions(doc: TreeDoc, personId: string, opts: { manualMode
   };
 }
 
-export function personActionLabel(id: PersonActionId): string {
+/** `coarse`: touch screens take the photo with the camera; elsewhere it is an upload. */
+export function personActionLabel(id: PersonActionId, opts: { coarse?: boolean } = {}): string {
   switch (id) {
     case 'edit':
       return t('editPerson');
+    case 'photo':
+      return opts.coarse ? t('takePhoto') : t('uploadPhoto');
     case 'addParents':
       return t('addParents');
     case 'addSibling':

@@ -48,6 +48,7 @@ export function SettingsMenu(props: {
   onLang: (l: Lang) => void;
   onBackground: (bg: CanvasBackground, coalesceKey?: string) => void;
   onBackgroundImage: (file: File) => Promise<void>;
+  coarse?: boolean;
 }) {
   const s = props.settings;
   const large = s.fontSize === 'large';
@@ -131,7 +132,7 @@ export function SettingsMenu(props: {
           {t('animateLineage')}
         </label>
         <Suspense fallback={<div className="bg-settings" style={{ minHeight: 120 }} />}>
-          <BackgroundSettings value={s.background} theme={s.theme} onChange={props.onBackground} onImage={props.onBackgroundImage} />
+          <BackgroundSettings value={s.background} theme={s.theme} onChange={props.onBackground} onImage={props.onBackgroundImage} coarse={props.coarse} />
         </Suspense>
         <div className="field" style={{ gridColumn: '1 / -1' }}>
           {t('generationsHelp')}

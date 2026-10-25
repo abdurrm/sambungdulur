@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type Ref } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type Ref } from 'react';
 import type { SheetSnap } from './sheetSnap';
 import { Icon } from './icons';
 import type { Gender, PersonFields, TreeDoc } from '../model/types';
@@ -47,8 +47,9 @@ interface Props {
   frame?: 'popup' | 'pinned';
   /** Pinned panel: back to the pop-up. */
   onUnpin?: () => void;
-  /** The edit form reports unsaved changes, and can be saved or discarded from outside. */
-  onDirtyChange?: (dirty: boolean) => void;
+  /** Touch screen: the Image tab offers the camera next to the gallery. */
+  coarse?: boolean;
+  /** The open edit form, for the unsaved-changes prompt (and saving from the keyboard). */
   formControl?: React.MutableRefObject<FormControl | null>;
 }
 
@@ -170,6 +171,8 @@ function DateInput(props: { label: string; value: string; onChange: (v: string) 
 
 /** Lets the App save or discard the open form (unsaved-changes prompt, Ctrl+Enter). */
 export interface FormControl {
+  /** Read at the moment of leaving (not via state), so a key pressed right after typing is still caught. */
+  isDirty: () => boolean;
   save: () => void;
   discard: () => void;
 }
@@ -180,7 +183,6 @@ function EditForm(props: {
   tab: Tab;
   onSave: (f: Partial<PersonFields>) => void;
   onCancel: () => void;
-  onDirty?: (dirty: boolean) => void;
   control?: React.MutableRefObject<FormControl | null>;
 }) {
   const p = props.doc.persons[props.id];
@@ -195,10 +197,7 @@ function EditForm(props: {
     });
     props.onSave(changed);
   };
-  const onDirty = props.onDirty;
-  useEffect(() => onDirty?.(dirty), [dirty, onDirty]);
-  useEffect(() => () => onDirty?.(false), [onDirty]);
-  if (props.control) props.control.current = { save, discard: props.onCancel };
+  if (props.control) props.control.current = { isDirty: () => dirty, save, discard: props.onCancel };
   useEffect(() => {
     const control = props.control;
     return () => {
@@ -309,6 +308,19 @@ export function Sidebar(props: Props) {
       if (editRequest.focus) focusFirst.current = true;
     }
   }, [editRequest, selectedId]);
+  // Desktop pop-up / pinned panel: when the form closes with focus inside it (Save, Cancel), focus moves to
+  // "Edit" right away. Otherwise the focused button vanishes and the pop-up later pulls focus back to
+  // itself, away from wherever the user went next (the canvas).
+  const wasEditing = useRef(false);
+  useLayoutEffect(() => {
+    const closed = wasEditing.current && !editing;
+    wasEditing.current = editing;
+    if (!closed || !props.frame) return;
+    const active = document.activeElement;
+    if (!active || active === document.body || bodyRef.current?.contains(active)) {
+      bodyRef.current?.querySelector<HTMLElement>('[data-testid="edit-person"]')?.focus();
+    }
+  }, [editing, props.frame]);
   const focusFirst = useRef(false);
   useEffect(() => {
     if (!editing || !focusFirst.current) return;
@@ -324,6 +336,11 @@ export function Sidebar(props: Props) {
     if (bodyRef.current) bodyRef.current.scrollTop = 0;
   }, [selectedId]);
   const p = selectedId ? doc.persons[selectedId] : undefined;
+  const pickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) props.onUploadImage(file);
+  };
   const fmt = (v: string) => formatDate(v, doc.settings.dateFormat) || t('unknown');
   const tabLabel = (x: Tab) => (x === 'personal' ? t('tabPersonal') : x === 'biography' ? t('tabBiography') : t('tabImage'));
   const tabs = (
@@ -357,7 +374,6 @@ export function Sidebar(props: Props) {
           id={p.id}
           tab={tab}
           onCancel={() => setEditing(false)}
-          onDirty={props.onDirtyChange}
           control={props.formControl}
           onSave={(f) => {
             props.onSave(p.id, f);
@@ -417,20 +433,24 @@ export function Sidebar(props: Props) {
             ) : (
               <p className="note">{t('noImage')}</p>
             )}
-            <label className="btn">
-              <Icon id="uploadImage" size={16} /> {p.photoId ? t('replaceImage') : t('uploadImage')}
-              <input
-                type="file"
-                accept="image/*,.heic,.heif,.webp"
-                hidden
-                data-testid="upload-image"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) props.onUploadImage(file);
-                  e.target.value = '';
-                }}
-              />
-            </label>
+            {props.coarse ? (
+              // Touch screens: the device camera (back camera first; the camera app can switch) or the gallery.
+              <div className="btn-grid">
+                <label className="btn">
+                  <Icon id="photo" size={16} /> {t('takePhoto')}
+                  <input type="file" accept="image/*" capture="environment" hidden data-testid="camera-image" onChange={pickFile} />
+                </label>
+                <label className="btn">
+                  <Icon id="uploadImage" size={16} /> {t('pickFromGallery')}
+                  <input type="file" accept="image/*,.heic,.heif,.webp" hidden data-testid="upload-image" onChange={pickFile} />
+                </label>
+              </div>
+            ) : (
+              <label className="btn">
+                <Icon id="uploadImage" size={16} /> {p.photoId ? t('replaceImage') : t('uploadImage')}
+                <input type="file" accept="image/*,.heic,.heif,.webp" hidden data-testid="upload-image" onChange={pickFile} />
+              </label>
+            )}
             {p.photoId && (
               <button className="btn danger" onClick={props.onDeleteImage} data-testid="delete-image">
                 <Icon id="deleteImage" size={16} /> {t('deleteImage')}
