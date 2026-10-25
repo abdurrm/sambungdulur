@@ -1061,20 +1061,20 @@ test('Nila & Sogan colours on screen and in PNG, JPEG and SVG exports', async ({
   // The "other" ring is teal, dashed.
   const ringColours = await page.locator('circle.ring').evaluateAll((els) => [...new Set(els.map((e) => e.getAttribute('stroke')))]);
 
-  const svg = fs.readFileSync(await exportImage(page, 'svg', 'theme'), 'utf8');
+  const svg = fs.readFileSync(await exportImage(page, 'svg', 'canvas'), 'utf8');
   expect(svg).toContain('fill="#fafaf9"');
   for (const c of ringColours) expect(svg).toContain(`stroke="${c}"`);
   expect(svg).toContain('stroke="#0d9488"'); // legend: other
   expect(svg).not.toMatch(/#059669|#7c3aed|#f8fafc/);
-  const png = await imagePixel(page, await exportImage(page, 'png', 'theme'), 'image/png', 'corner');
+  const png = await imagePixel(page, await exportImage(page, 'png', 'canvas'), 'image/png', 'corner');
   expect(png.slice(0, 3)).toEqual([250, 250, 249]);
-  const jpeg = await imagePixel(page, await exportImage(page, 'jpeg', 'theme'), 'image/jpeg', 'corner');
+  const jpeg = await imagePixel(page, await exportImage(page, 'jpeg', 'canvas'), 'image/jpeg', 'corner');
   for (const [i, v] of [250, 250, 249].entries()) expect(Math.abs(jpeg[i] - v)).toBeLessThanOrEqual(3);
 
   // Dark theme: same tokens on screen and in the export.
   await page.getByTestId('btn-theme').click();
   expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(12, 10, 9)');
-  const dark = await imagePixel(page, await exportImage(page, 'png', 'theme'), 'image/png', 'corner');
+  const dark = await imagePixel(page, await exportImage(page, 'png', 'canvas'), 'image/png', 'corner');
   expect(dark.slice(0, 3)).toEqual([12, 10, 9]);
 });
 
@@ -1292,4 +1292,93 @@ test('new logo in the header and favicon; manifest lists 192, 512, maskable and 
     }, b64);
     expect(outside, file).toBe(0);
   }
+});
+
+/** RGB at a point of the screen (canvas-local offsets from the canvas' top-left corner). */
+async function canvasPixel(page: Page, dx = 60, dy = 260) {
+  const c = (await page.getByTestId('tree-canvas').boundingBox())!;
+  const shot = await page.screenshot({ clip: { x: c.x + dx, y: c.y + dy, width: 1, height: 1 } });
+  return page.evaluate(async (b64) => {
+    const bytes = Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0));
+    const bmp = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
+    const cv = new OffscreenCanvas(1, 1);
+    const ctx = cv.getContext('2d')!;
+    ctx.drawImage(bmp, 0, 0);
+    return [...ctx.getImageData(0, 0, 1, 1).data].slice(0, 3);
+  }, shot.toString('base64'));
+}
+const hex = (rgb: number[]) => '#' + rgb.map((v) => v.toString(16).padStart(2, '0')).join('');
+
+test('canvas background: grid or plain colour, live, undoable, saved with the tree and exported', async ({ page }) => {
+  await fresh(page);
+  const svg = page.locator('svg.tree-svg');
+  await expect(svg).toHaveAttribute('data-backdrop', 'grid');
+  await page.getByTestId('btn-settings').click();
+  await page.getByTestId('bg-kind-solid').click();
+  await page.getByTestId('bg-swatch-sky').click();
+  await expect(page.getByTestId('bg-swatch-sky')).toHaveAttribute('aria-pressed', 'true');
+  // Live: the empty canvas behind the open settings already shows the colour.
+  await expect(svg).toHaveAttribute('data-backdrop', 'solid');
+  await expect.poll(async () => hex(await canvasPixel(page))).toBe('#e2eef6');
+  await page.getByTestId('bg-custom').fill('#123456');
+  await expect.poll(async () => hex(await canvasPixel(page))).toBe('#123456');
+  // A dark colour switches lines and shadows to their light variant.
+  await expect(page.getByTestId('tree-canvas')).toHaveAttribute('data-ink', 'light');
+  await page.getByTestId('bg-kind-grid').click();
+  await expect(svg).toHaveAttribute('data-backdrop', 'grid');
+  await expect(page.getByTestId('tree-canvas')).toHaveAttribute('data-ink', 'dark');
+  await page.keyboard.press('Escape');
+
+  // Undo brings back the previous background.
+  await page.getByTestId('tree-canvas').focus();
+  await page.keyboard.press('Control+z');
+  await expect(svg).toHaveAttribute('data-backdrop', 'solid');
+  await expect.poll(async () => hex(await canvasPixel(page))).toBe('#123456');
+  await page.getByTestId('btn-settings').click();
+  await page.getByTestId('bg-swatch-sky').click();
+  await page.keyboard.press('Escape');
+
+  // Kept after reload, and in a .sambung file.
+  await page.waitForTimeout(700);
+  await page.reload();
+  await expect(svg).toHaveAttribute('data-backdrop', 'solid');
+  await expect.poll(async () => hex(await canvasPixel(page))).toBe('#e2eef6');
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByTestId('btn-save').click()]);
+  const saved = fs.readFileSync((await dl.path())!);
+  await page.getByTestId('btn-reset').click();
+  await page.getByTestId('confirm-ok').click();
+  await expect(svg).toHaveAttribute('data-backdrop', 'grid');
+  await page.getByTestId('btn-open').click();
+  await page.getByTestId('open-file-input').setInputFiles({ name: 'bg.sambung', mimeType: 'application/zip', buffer: saved });
+  await page.getByTestId('open-close').click();
+  await expect(svg).toHaveAttribute('data-backdrop', 'solid');
+
+  // Export: "Follow canvas background" is the default; JPEG never stays transparent.
+  await page.getByTestId('btn-export').click();
+  await expect(page.getByTestId('export-bg-canvas')).toHaveClass(/on/);
+  await expect(page.getByTestId('export-bg-canvas')).toHaveText('Follow canvas background');
+  await page.keyboard.press('Escape');
+  const png = await imagePixel(page, await exportImage(page, 'png'), 'image/png', 'corner');
+  expect(hex(png.slice(0, 3))).toBe('#e2eef6');
+  await page.getByTestId('btn-export').click();
+  await page.getByTestId('export-kind-png').click();
+  await page.getByTestId('export-bg-transparent').click();
+  await page.getByTestId('export-kind-jpeg').click();
+  const [jdl] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-run').click()]);
+  const jpeg = await imagePixel(page, (await jdl.path())!, 'image/jpeg', 'corner');
+  for (const v of jpeg.slice(0, 3)) expect(v).toBeGreaterThan(250);
+});
+
+test('family lines and captions stay readable on dark and light plain backgrounds (axe)', async ({ page }) => {
+  await fresh(page);
+  for (const preset of ['night', 'cream']) {
+    await page.getByTestId('btn-settings').click();
+    await page.getByTestId('bg-kind-solid').click();
+    await page.getByTestId(`bg-swatch-${preset}`).click();
+    await page.keyboard.press('Escape');
+    await stableBox(card(page, 'Me').locator('.card-bg'));
+    expect(await seriousA11yIssues(page), preset).toEqual([]);
+  }
+  await page.getByTestId('btn-theme').click();
+  expect(await seriousA11yIssues(page), 'dark theme, cream preset').toEqual([]);
 });

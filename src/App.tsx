@@ -21,7 +21,8 @@ import { PANEL_DEFAULT, Sidebar } from './ui/Sidebar';
 import { SHEET_BAR_PX, type SheetSnap } from './ui/sheetSnap';
 import { useBackToClose } from './ui/backToClose';
 import { emptyHistory, record, redo as redoStep, undo as undoStep, type History } from './model/history';
-import { GenerationControl, LanguageSelect, SettingsMenu } from './ui/SettingsMenu';
+import { GenerationControl, LanguageSelect, loadBackgroundSettings, SettingsMenu } from './ui/SettingsMenu';
+import type { CanvasBackground } from './model/background';
 import { SearchPanel } from './ui/SearchPanel';
 import type { OpenReport } from './ui/OpenDialog';
 import type { MenuAnchor } from './ui/PersonMenu';
@@ -71,6 +72,7 @@ function preloadLazyUi() {
     void import('./ui/ExportDialog');
     void import('./ui/OpenDialog');
     void import('./ui/SheetFrame');
+    void loadBackgroundSettings();
   };
   if ('requestIdleCallback' in window) requestIdleCallback(run, { timeout: 2000 });
   else setTimeout(run, 800);
@@ -378,6 +380,9 @@ export default function App() {
     setDoc((d) => ({ ...d, settings: { ...d.settings, ...patch } }), false);
     if ('ancestorGenerations' in patch || 'descendantGenerations' in patch) pendingCenter.current = 'fit';
   };
+  /** The canvas background is part of the tree's look: an undoable change that is saved with the file. */
+  const setBackground = (background: CanvasBackground, coalesceKey?: string) =>
+    setDoc((d) => ({ ...d, settings: { ...d.settings, background } }), true, coalesceKey);
   const focusOn = (id: string) => {
     setDoc((d) => ({ ...d, focusId: id }), false);
     setSelectedId(id);
@@ -867,7 +872,7 @@ export default function App() {
               </button>
             }
           >
-            <SettingsMenu settings={doc.settings} onChange={patchSettings} onClose={() => setPopover(null)} lang={lang} onLang={changeLang} />
+            <SettingsMenu settings={doc.settings} onChange={patchSettings} onClose={() => setPopover(null)} lang={lang} onLang={changeLang} onBackground={setBackground} />
           </ToolPopover>
           </Suspense>
           {wide ? (

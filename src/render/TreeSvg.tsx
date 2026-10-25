@@ -4,6 +4,7 @@ import type { TreeLayout, LayoutNode } from '../layout/layout';
 import { cardStyle, type Density } from '../layout/metrics';
 import { displayName } from '../model/relations';
 import { FONT_MONO, FONT_SANS, type Palette } from './palette';
+import type { Backdrop } from '../model/background';
 import { t } from '../i18n';
 
 export interface TreeSvgProps {
@@ -24,8 +25,10 @@ export interface TreeSvgProps {
   interactive?: boolean;
   manualMode?: boolean;
   trace?: boolean;
-  /** Draw background + grid (exports may choose transparent). */
+  /** Draw the background (exports may choose transparent). */
   background?: boolean;
+  /** What the background looks like; defaults to the theme grid. */
+  backdrop?: Backdrop;
   padding?: number;
   legend?: boolean;
   /** Radius (layout units) of the invisible press area around card buttons; set on touch screens. */
@@ -291,6 +294,7 @@ export function TreeSvg(props: TreeSvgProps) {
     </>
   );
   const legendY = layout.minY + layout.height + pad + 4;
+  const backdrop: Backdrop = props.backdrop ?? { kind: 'grid', color: pal.bg, grid: true };
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -301,6 +305,7 @@ export function TreeSvg(props: TreeSvgProps) {
       height={props.transform ? '100%' : h}
       role="img"
       aria-label={props.title ?? doc.title}
+      data-backdrop={props.background === false ? 'none' : backdrop.kind}
     >
       <defs>
         <pattern id="grid-minor" width="24" height="24" patternUnits="userSpaceOnUse">
@@ -323,23 +328,23 @@ export function TreeSvg(props: TreeSvgProps) {
       </defs>
       {props.background !== false &&
         (props.transform ? (
-          <rect className="canvas-bg" x="-100000" y="-100000" width="200000" height="200000" fill={pal.bg} />
+          <rect className="canvas-bg" x="-100000" y="-100000" width="200000" height="200000" fill={backdrop.color} />
         ) : (
           <>
-            <rect x={vbX} y={vbY} width={w} height={h} fill={pal.bg} />
-            <rect x={vbX} y={vbY} width={w} height={h} fill="url(#grid-major)" />
+            <rect className="canvas-bg" x={vbX} y={vbY} width={w} height={h} fill={backdrop.color} />
+            {backdrop.grid && <rect x={vbX} y={vbY} width={w} height={h} fill="url(#grid-major)" />}
           </>
         ))}
       {props.transform ? (
         <g transform={props.transform}>
-          {props.background !== false && <rect x="-100000" y="-100000" width="200000" height="200000" fill="url(#grid-major)" pointerEvents="none" />}
+          {props.background !== false && backdrop.grid && <rect x="-100000" y="-100000" width="200000" height="200000" fill="url(#grid-major)" pointerEvents="none" />}
           {body}
         </g>
       ) : (
         body
       )}
       {props.legend && (
-        <g fontFamily={FONT_SANS} fontSize={13} fill={pal.muted}>
+        <g fontFamily={FONT_SANS} fontSize={13} fill={pal.caption}>
           {(['male', 'female', 'other'] as const).map((g, i) => (
             <g key={g} transform={`translate(${vbX + pad + i * 190},${legendY})`}>
               <circle cx={8} cy={8} r={7} fill="none" stroke={pal.ring[g]} strokeWidth={3} strokeDasharray={g === 'other' ? '4 2' : undefined} />

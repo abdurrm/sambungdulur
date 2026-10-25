@@ -1,5 +1,6 @@
 import type { Gender, Theme } from '../model/types';
 import { TOKENS } from '../theme/tokens';
+import { inkFor, type Backdrop } from '../model/background';
 
 /**
  * Canvas palette: warm stone canvas with a fine grid, crisp cards, monospace metadata, and the Nila
@@ -28,6 +29,8 @@ export interface Palette {
   /** Text on a filled `handle` (manual-layout move handle). */
   onHandle: string;
   shadow: string;
+  /** Text drawn straight on the canvas (export legend). */
+  caption: string;
 }
 
 function paletteFor(theme: Theme): Palette {
@@ -53,10 +56,22 @@ function paletteFor(theme: Theme): Palette {
     handle: k.primaryText,
     onHandle: k.onPrimary,
     shadow: k.shadowColor,
+    caption: k.muted,
   };
 }
 
 export const PALETTES: Record<Theme, Palette> = { light: paletteFor('light'), dark: paletteFor('dark') };
+
+/**
+ * The theme palette on a given background: family lines, the lineage highlight and card shadows take
+ * the light-theme or dark-theme variant, whichever stands out against the background (cards keep the
+ * theme's own colours).
+ */
+export function paletteOn(theme: Theme, backdrop: Backdrop): Palette {
+  const base = PALETTES[theme];
+  const ink = PALETTES[inkFor(backdrop.color) === 'dark' ? 'light' : 'dark'];
+  return { ...base, bg: backdrop.color, edge: ink.edge, edgeFar: ink.edgeFar, emphasis: ink.emphasis, emphasisGlow: ink.emphasisGlow, shadow: ink.shadow, caption: ink.caption };
+}
 
 export const FONT_SANS = "Inter, 'Segoe UI', system-ui, -apple-system, Roboto, 'Noto Sans', 'Helvetica Neue', Arial, sans-serif";
 export const FONT_MONO = "'JetBrains Mono', 'Cascadia Mono', Consolas, 'DejaVu Sans Mono', 'Liberation Mono', ui-monospace, monospace";

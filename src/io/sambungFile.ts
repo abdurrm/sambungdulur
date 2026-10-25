@@ -11,7 +11,8 @@ import type { TreeDoc } from '../model/types';
 import { DEFAULT_SETTINGS } from '../model/types';
 
 export const SAMBUNG_FORMAT = 'sambungdulur';
-export const SAMBUNG_VERSION = 1;
+/** 2: tree settings carry the canvas background. Version 1 files open with the default grid. */
+export const SAMBUNG_VERSION = 2;
 
 export interface SambungManifest {
   format: string;

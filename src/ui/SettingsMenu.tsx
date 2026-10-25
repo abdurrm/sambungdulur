@@ -1,7 +1,13 @@
+import { lazy, Suspense } from 'react';
 import type { DateFormat, FontSize, TreeSettings } from '../model/types';
+import type { CanvasBackground } from '../model/background';
 import { LANGS, t, type Lang } from '../i18n';
 import { REPO_URL } from '../links';
 import { stepGeneration } from '../model/generations';
+
+// The background section (colour swatches, picker) loads with the popover, not with the first view.
+export const loadBackgroundSettings = () => import('./BackgroundSettings');
+const BackgroundSettings = lazy(loadBackgroundSettings);
 
 const DATE_FORMATS: DateFormat[] = ['MM/DD/YYYY', 'MM.DD.YYYY', 'DD/MM/YYYY', 'DD.MM.YYYY', 'YYYY'];
 
@@ -40,6 +46,7 @@ export function SettingsMenu(props: {
   onClose: () => void;
   lang: Lang;
   onLang: (l: Lang) => void;
+  onBackground: (bg: CanvasBackground, coalesceKey?: string) => void;
 }) {
   const s = props.settings;
   const large = s.fontSize === 'large';
@@ -122,6 +129,9 @@ export function SettingsMenu(props: {
           <input type="checkbox" checked={s.traceAnimation} onChange={() => set({ traceAnimation: !s.traceAnimation })} data-testid="set-trace" />
           {t('animateLineage')}
         </label>
+        <Suspense fallback={<div className="bg-settings" style={{ minHeight: 120 }} />}>
+          <BackgroundSettings value={s.background} theme={s.theme} onChange={props.onBackground} />
+        </Suspense>
         <div className="field" style={{ gridColumn: '1 / -1' }}>
           {t('generationsHelp')}
           <GenerationControl settings={s} onChange={set} compact />

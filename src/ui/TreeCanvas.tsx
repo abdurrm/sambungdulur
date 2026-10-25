@@ -6,7 +6,8 @@ import type { TreeDoc } from '../model/types';
 import type { TreeLayout } from '../layout/layout';
 import type { VisibleGraph } from '../layout/visible';
 import { TreeSvg } from '../render/TreeSvg';
-import { PALETTES } from '../render/palette';
+import { paletteOn } from '../render/palette';
+import { inkFor, resolveBackdrop } from '../model/background';
 import { displayName } from '../model/relations';
 import { personLabel } from '../model/a11y';
 import { t as tx } from '../i18n';
@@ -271,7 +272,8 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
     props.onSelect(person ? person.getAttribute('data-person-id') : null);
   };
 
-  const palette = PALETTES[props.doc.settings.theme];
+  const backdrop = resolveBackdrop(props.doc.settings.background, props.doc.settings.theme);
+  const palette = paletteOn(props.doc.settings.theme, backdrop);
   const selectedNode = props.selectedId ? props.layout.nodes.get(props.selectedId) : undefined;
   const doc = props.doc;
   const describe = useCallback((id: string) => personLabel(doc, id), [doc]);
@@ -281,6 +283,7 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
       className="canvas-wrap"
       data-testid="tree-canvas"
       data-key-scope="tree"
+      data-ink={inkFor(backdrop.color)}
       tabIndex={0}
       role="group"
       aria-label={tx('canvasLabel')}
@@ -309,6 +312,7 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
         doc={props.doc}
         layout={props.layout}
         palette={palette}
+        backdrop={backdrop}
         density="normal"
         mediaUrl={props.mediaUrl}
         selectedId={props.selectedId}

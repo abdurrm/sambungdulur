@@ -4,11 +4,13 @@ import type { TreeDoc } from '../model/types';
 import { computeLayout } from '../layout/layout';
 import type { Density } from '../layout/metrics';
 import { selectVisible } from '../layout/visible';
-import { PALETTES } from '../render/palette';
+import { paletteOn } from '../render/palette';
+import { resolveBackdrop, type Backdrop } from '../model/background';
 import { TreeSvg } from '../render/TreeSvg';
 import { t } from '../i18n';
 
-export type ImageBackground = 'theme' | 'white' | 'transparent';
+/** `canvas` follows the tree's canvas background. */
+export type ImageBackground = 'canvas' | 'white' | 'transparent';
 
 export interface ImageExportOptions {
   density: Density;
@@ -38,7 +40,7 @@ export async function buildExportSvg(
   doc: TreeDoc,
   opts: ImageExportOptions,
   getMediaBlob: (id: string) => Promise<Blob | undefined>,
-): Promise<{ svg: string; width: number; height: number }> {
+): Promise<{ svg: string; width: number; height: number; backdrop: Backdrop }> {
   const vis = selectVisible(doc, opts.focusId, opts.ancestors, opts.descendants);
   const layout = computeLayout(doc, vis, { density: opts.density, manual: true });
   const urls = new Map<string, string>();
@@ -51,8 +53,9 @@ export async function buildExportSvg(
       if (blob) urls.set(mid, await blobToDataUrl(blob));
     }
   }
-  const palette = { ...PALETTES[doc.settings.theme] };
-  if (opts.background === 'white') palette.bg = '#ffffff';
+  const theme = doc.settings.theme;
+  const backdrop: Backdrop = opts.background === 'white' ? { kind: 'solid', color: '#ffffff', grid: false } : resolveBackdrop(doc.settings.background, theme);
+  const palette = paletteOn(theme, backdrop);
   const markup = renderToStaticMarkup(
     createElement(TreeSvg, {
       doc,
@@ -61,6 +64,7 @@ export async function buildExportSvg(
       density: opts.density,
       mediaUrl: (id: string) => urls.get(id),
       background: opts.background !== 'transparent',
+      backdrop,
       legend: opts.legend,
       padding: 48,
       title: doc.title,
@@ -68,7 +72,7 @@ export async function buildExportSvg(
   );
   const width = Math.ceil(layout.width + 96);
   const height = Math.ceil(layout.height + 96 + (opts.legend ? 40 : 0));
-  return { svg: `<?xml version="1.0" encoding="UTF-8"?>\n${markup}`, width, height };
+  return { svg: `<?xml version="1.0" encoding="UTF-8"?>\n${markup}`, width, height, backdrop };
 }
 
 export function fitScale(width: number, height: number, wanted: number): number {

@@ -5,7 +5,6 @@ import type { Density } from '../layout/metrics';
 import { exportGedcom } from '../gedcom/gedcom';
 import { exportGenealogyText } from '../io/textExport';
 import { buildExportSvg, downloadBlob, rasterize, safeFileName, type ImageBackground } from '../io/imageExport';
-import { PALETTES } from '../render/palette';
 import { Modal } from './dialogs';
 import { t, type Key } from '../i18n';
 
@@ -20,7 +19,7 @@ const KINDS: { kind: Kind; label: Key; desc: Key; color: string }[] = [
 ];
 
 const DENSITY_LABEL: Record<Density, Key> = { compact: 'compact', normal: 'normal', detailed: 'detailed' };
-const BG_LABEL: Record<ImageBackground, Key> = { theme: 'grid', white: 'white', transparent: 'transparent' };
+const BG_LABEL: Record<ImageBackground, Key> = { canvas: 'bgFollowCanvas', white: 'white', transparent: 'transparent' };
 
 export function ExportDialog(props: {
   doc: TreeDoc;
@@ -32,7 +31,7 @@ export function ExportDialog(props: {
   const { doc } = props;
   const [kind, setKind] = useState<Kind>('png');
   const [density, setDensity] = useState<Density>('normal');
-  const [background, setBackground] = useState<ImageBackground>('theme');
+  const [background, setBackground] = useState<ImageBackground>('canvas');
   const [scale, setScale] = useState(2);
   const [scope, setScope] = useState<'view' | 'all'>('view');
   const [legend, setLegend] = useState(true);
@@ -54,7 +53,7 @@ export function ExportDialog(props: {
     try {
       if (kind === 'png' || kind === 'jpeg' || kind === 'svg') {
         const bg: ImageBackground = kind === 'jpeg' && background === 'transparent' ? 'white' : background;
-        const { svg, width, height } = await buildExportSvg(
+        const { svg, width, height, backdrop } = await buildExportSvg(
           doc,
           { density, background: bg, scale, legend, focusId: props.focusId, ancestors: up, descendants: down },
           props.getMediaBlob,
@@ -63,7 +62,7 @@ export function ExportDialog(props: {
           downloadBlob(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }), `${base}.svg`);
           props.onDone(t('exportedImage', { file: `${base}.svg`, w: width, h: height, reduced: '' }));
         } else {
-          const jpegBg = bg === 'white' ? '#ffffff' : PALETTES[doc.settings.theme].bg;
+          const jpegBg = bg === 'white' ? '#ffffff' : backdrop.color;
           const { blob, scale: used } = await rasterize(svg, width, height, scale, kind === 'png' ? 'image/png' : 'image/jpeg', jpegBg);
           const name = `${base}-${density}.${kind === 'png' ? 'png' : 'jpeg'}`;
           downloadBlob(blob, name);
@@ -166,7 +165,7 @@ export function ExportDialog(props: {
             <div className="field">
               {t('background')}
               <div className="seg">
-                {(['theme', 'white', 'transparent'] as ImageBackground[]).map((b) => (
+                {(['canvas', 'white', 'transparent'] as ImageBackground[]).map((b) => (
                   <button key={b} className={background === b ? 'on' : ''} disabled={b === 'transparent' && kind === 'jpeg'} onClick={() => setBackground(b)} data-testid={`export-bg-${b}`}>
                     {t(BG_LABEL[b])}
                   </button>

@@ -1,3 +1,5 @@
+import { DEFAULT_BACKGROUND, type CanvasBackground } from './background';
+
 export type Gender = 'male' | 'female' | 'other';
 
 /** Editable attributes of a person. Dates are stored as GEDCOM date values ("4 JUL 1994", "1995", "ABT 1950"). */
@@ -51,6 +53,8 @@ export interface TreeSettings {
   descendantGenerations: number;
   theme: Theme;
   traceAnimation: boolean;
+  /** Canvas background (kept with the tree and in .sambung files; older files get the grid). */
+  background: CanvasBackground;
 }
 
 export interface MediaItem {
@@ -107,6 +111,7 @@ export const DEFAULT_SETTINGS: TreeSettings = {
   descendantGenerations: 3,
   theme: 'light',
   traceAnimation: false,
+  background: DEFAULT_BACKGROUND,
 };
 
 export function emptyFields(): PersonFields {
