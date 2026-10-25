@@ -51,7 +51,7 @@ export function SettingsMenu(props: {
   const large = s.fontSize === 'large';
   const set = props.onChange;
   return (
-    <div className="popover" role="dialog" aria-label={t('treeSettings')} data-testid="settings-menu">
+    <div className="settings-body">
       <div className="settings-grid">
         <label className="field">
           {t('dateFormat')}

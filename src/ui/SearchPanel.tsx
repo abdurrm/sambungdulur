@@ -81,7 +81,7 @@ export function SearchPanel(props: {
     props.onClose();
   };
   return (
-    <div className="popover search-panel" role="dialog" aria-label={t('searchPeople')} data-testid="search-panel">
+    <div className="search-panel">
       <input
         className="input"
         type="search"

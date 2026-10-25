@@ -23,6 +23,7 @@ import { AddChildDialog, ConfirmDialog, ManualLayoutInfo, MessageDialog, Toast }
 import { CropDialog } from './ui/CropDialog';
 import { GenerationControl, LanguageSelect, SettingsMenu } from './ui/SettingsMenu';
 import { SearchPanel } from './ui/SearchPanel';
+import { MoreMenu, ToolPopover } from './ui/HeaderPopups';
 import { ExportDialog } from './ui/ExportDialog';
 import { OpenDialog, type OpenReport } from './ui/OpenDialog';
 import { GUIDE_URL } from './links';
@@ -518,18 +519,51 @@ export default function App() {
             <Download size={18} /> <span className="label">{t('export')}</span>
           </button>
           {!narrow && <span className="tool-sep" />}
-          <button className={`tool-btn${popover === 'search' ? ' active' : ''}`} onClick={() => setPopover(popover === 'search' ? null : 'search')} data-testid="btn-search" title={t('searchTitle')}>
-            <Search size={18} /> <span className="label">{t('search')}</span>
-          </button>
+          <ToolPopover
+            open={popover === 'search'}
+            onOpenChange={(o) => setPopover(o ? 'search' : null)}
+            label={t('searchPeople')}
+            testId="search-panel"
+            className="search-popover"
+            trigger={
+              <button className={`tool-btn${popover === 'search' ? ' active' : ''}`} data-testid="btn-search" title={t('searchTitle')}>
+                <Search size={18} /> <span className="label">{t('search')}</span>
+              </button>
+            }
+          >
+            <SearchPanel
+              doc={doc}
+              onClose={() => setPopover(null)}
+              onQuery={setMatches}
+              onPick={(id) => {
+                setMatches(new Set([id]));
+                if (visible.gen.has(id)) {
+                  setSelectedId(id);
+                  canvas.current?.centerOn(id, 1);
+                } else focusOn(id);
+                if (narrow) setSidebarHidden(false);
+              }}
+            />
+          </ToolPopover>
           {wide && <GenerationControl settings={doc.settings} onChange={patchSettings} />}
           {wide && (
             <span className="header-lang">
               <LanguageSelect lang={lang} onChange={changeLang} />
             </span>
           )}
-          <button className={`tool-btn${popover === 'settings' ? ' active' : ''}`} onClick={() => setPopover(popover === 'settings' ? null : 'settings')} data-testid="btn-settings" title={t('treeSettings')}>
-            <Settings2 size={18} /> <span className="label">{t('treeSettings')}</span>
-          </button>
+          <ToolPopover
+            open={popover === 'settings'}
+            onOpenChange={(o) => setPopover(o ? 'settings' : null)}
+            label={t('treeSettings')}
+            testId="settings-menu"
+            trigger={
+              <button className={`tool-btn${popover === 'settings' ? ' active' : ''}`} data-testid="btn-settings" title={t('treeSettings')}>
+                <Settings2 size={18} /> <span className="label">{t('treeSettings')}</span>
+              </button>
+            }
+          >
+            <SettingsMenu settings={doc.settings} onChange={patchSettings} onClose={() => setPopover(null)} lang={lang} onLang={changeLang} />
+          </ToolPopover>
           {wide ? (
             <>
               <button className={`tool-btn${manualMode ? ' active' : ''}`} onClick={toggleManual} data-testid="btn-manual" title={t('manualLayout')}>
@@ -556,9 +590,19 @@ export default function App() {
               )}
             </>
           ) : (
-            <button className={`tool-btn${popover === 'more' ? ' active' : ''}`} onClick={() => setPopover(popover === 'more' ? null : 'more')} data-testid="btn-more" aria-label={t('moreTools')} title={t('moreTools')}>
-              <MoreHorizontal size={18} />
-            </button>
+            <MoreMenu
+              open={popover === 'more'}
+              onOpenChange={(o) => setPopover(o ? 'more' : null)}
+              theme={doc.settings.theme}
+              lang={lang}
+              manualMode={manualMode}
+              canInstall={!!installEvt}
+              onManual={toggleManual}
+              onTheme={() => patchSettings({ theme: doc.settings.theme === 'light' ? 'dark' : 'light' })}
+              onLang={changeLang}
+              onInstall={() => installEvt?.prompt().then(() => setInstallEvt(null))}
+              onReset={() => setDialog({ kind: 'confirmReset' })}
+            />
           )}
         </nav>
       </header>
@@ -653,37 +697,6 @@ export default function App() {
 
         </div>
 
-        {popover === 'settings' && <SettingsMenu settings={doc.settings} onChange={patchSettings} onClose={() => setPopover(null)} lang={lang} onLang={changeLang} />}
-        {popover === 'search' && (
-          <SearchPanel
-            doc={doc}
-            onClose={() => setPopover(null)}
-            onQuery={setMatches}
-            onPick={(id) => {
-              setMatches(new Set([id]));
-              if (visible.gen.has(id)) {
-                setSelectedId(id);
-                canvas.current?.centerOn(id, 1);
-              } else focusOn(id);
-              if (narrow) setSidebarHidden(false);
-            }}
-          />
-        )}
-        {popover === 'more' && !wide && (
-          <div className="popover" data-testid="more-menu">
-            <div className="form">
-              <GenerationControl settings={doc.settings} onChange={patchSettings} />
-              <LanguageSelect lang={lang} onChange={changeLang} />
-              <button className="btn" onClick={() => (setPopover(null), toggleManual())}><LayoutTemplate size={16} /> {t('manualLayout')}</button>
-              <button className="btn" onClick={() => patchSettings({ theme: doc.settings.theme === 'light' ? 'dark' : 'light' })}>
-                {doc.settings.theme === 'light' ? <Moon size={16} /> : <Sun size={16} />} {doc.settings.theme === 'light' ? t('darkTheme') : t('lightTheme')}
-              </button>
-              <a className="btn" href={GUIDE_URL} target="_blank" rel="noopener noreferrer" data-testid="more-help"><CircleHelp size={16} /> {t('help')}</a>
-              {installEvt && <button className="btn" onClick={() => installEvt.prompt().then(() => setInstallEvt(null))}><MonitorDown size={16} /> {t('installApp')}</button>}
-              <button className="btn danger" onClick={() => (setPopover(null), setDialog({ kind: 'confirmReset' }))}><RotateCcw size={16} /> {t('resetTree')}</button>
-            </div>
-          </div>
-        )}
       </div>
 
       {dialog?.kind === 'addChild' && (

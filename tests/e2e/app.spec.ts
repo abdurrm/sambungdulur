@@ -270,7 +270,13 @@ test('mobile layout has no horizontal overflow and a bottom sheet editor @mobile
   await expect(page.getByTestId('selected-name')).toHaveText('My Mother');
   await expect(page.getByTestId('sidebar')).not.toHaveClass(/hidden/);
   await page.getByTestId('btn-more').tap();
-  await expect(page.getByTestId('more-menu')).toBeVisible();
+  const menu = page.getByTestId('more-menu');
+  await expect(menu).toBeVisible();
+  // The overflow menu docks to the bottom of the screen and sits above the editor sheet.
+  const mb = (await menu.boundingBox())!;
+  expect(mb.y + mb.height).toBeGreaterThan(844 - 40);
+  const onTop = await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('[data-testid="more-menu"]'), [mb.x + mb.width / 2, mb.y + mb.height - 20]);
+  expect(onTop).toBe(true);
 });
 
 test('defaults to Indonesian and switches to Javanese and English', async ({ page }) => {
@@ -376,13 +382,50 @@ test('dialogs trap focus, close with Escape and return focus to their trigger', 
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();
 
-  // Escape closes only the dialog on top, not the search popover underneath it.
-  await page.getByTestId('btn-search').click();
-  await expect(page.getByTestId('search-panel')).toBeVisible();
+  // Dialogs opened from the editor return focus there too.
   await page.getByTestId('sidebar').getByTestId('add-child').click();
   await expect(page.getByTestId('add-child-dialog')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('add-child-dialog')).toBeHidden();
-  await expect(page.getByTestId('search-panel')).toBeVisible();
   await expect(page.getByTestId('add-child')).toBeFocused();
+});
+
+test('header popovers and the overflow menu are keyboard friendly; reset is set apart', async ({ page }) => {
+  await fresh(page);
+  // Opening one header popup closes the other.
+  await page.getByTestId('btn-search').click();
+  await expect(page.getByTestId('search-panel')).toBeVisible();
+  await page.getByTestId('btn-settings').click();
+  await expect(page.getByTestId('settings-menu')).toBeVisible();
+  await expect(page.getByTestId('search-panel')).toBeHidden();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('settings-menu')).toBeHidden();
+  await expect(page.getByTestId('btn-settings')).toBeFocused();
+
+  // Medium width: secondary tools live in the overflow menu.
+  await page.setViewportSize({ width: 900, height: 900 });
+  await expect(page.locator('html')).toHaveAttribute('data-layout', 'medium');
+  await expect(page.getByTestId('btn-theme')).toHaveCount(0);
+  const more = page.getByTestId('btn-more');
+  await more.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('more-menu')).toBeVisible();
+  // Arrow keys move through items; Enter runs one and closes the menu.
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByTestId('more-theme')).toHaveAttribute('data-highlighted', '');
+  const before = await page.locator('html').getAttribute('data-theme');
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('more-menu')).toBeHidden();
+  await expect(page.locator('html')).not.toHaveAttribute('data-theme', before!);
+  await expect(more).toBeFocused();
+
+  // Reset tree is separated from view settings and always asks first.
+  await more.click();
+  const reset = page.getByTestId('more-reset');
+  await expect(reset).toHaveClass(/danger/);
+  await expect(page.getByTestId('more-menu').locator('.danger-sep')).toHaveCount(1);
+  await reset.click();
+  await expect(page.getByTestId('confirm-dialog')).toBeVisible();
+  await page.getByTestId('confirm-cancel').click();
+  await expect(persons(page)).toHaveCount(3);
 });
