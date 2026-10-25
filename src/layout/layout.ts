@@ -313,6 +313,10 @@ export function computeLayout(doc: TreeDoc, vis: VisibleGraph, opts: LayoutOptio
     if (sameUnitPair) {
       ax = (ps[0].x + ps[1].x) / 2;
       ay = ps[0].y + Math.min(ps[0].h, ps[1].h) / 2;
+      // The trunk may leave the partner line anywhere between the two cards: an only child standing in
+      // that gap gets a perfectly straight line instead of a small jog at the bus.
+      const [pl, pr] = ps[0].x < ps[1].x ? [ps[0], ps[1]] : [ps[1], ps[0]];
+      if (kids.length === 1 && kids[0].x > pl.x + pl.w / 2 + 2 && kids[0].x < pr.x - pr.w / 2 - 2) ax = kids[0].x;
     } else {
       ax = ps[0].x;
       ay = ps[0].y + ps[0].h;
@@ -325,13 +329,20 @@ export function computeLayout(doc: TreeDoc, vis: VisibleGraph, opts: LayoutOptio
     const xs = kids.map((k) => k.x);
     const minX = Math.min(ax, ...xs);
     const maxX = Math.max(ax, ...xs);
+    // A drop at either end of the bus turns with a rounded elbow: the bus stops where that elbow begins,
+    // so no straight stub sticks out past the curve.
+    const elbow = (k: LayoutNode) => Math.min(CORNER, Math.abs(k.x - ax), Math.max(0, k.y - busY));
+    const leftKid = kids.find((k) => k.x === minX && k.x < ax - 0.5);
+    const rightKid = kids.find((k) => k.x === maxX && k.x > ax + 0.5);
+    const busL = minX + (leftKid && elbow(leftKid) >= 1 ? elbow(leftKid) : 0);
+    const busR = maxX - (rightKid && elbow(rightKid) >= 1 ? elbow(rightKid) : 0);
     // Trunk from couple (or single parent) down to the bus.
     let d = `M${r(ax)},${r(ay)}V${r(busY)}`;
-    if (maxX - minX > 0.5) d += `M${r(minX)},${r(busY)}H${r(maxX)}`;
+    if (busR - busL > 0.5) d += `M${r(busL)},${r(busY)}H${r(busR)}`;
     edges.push({ id: `${f.id}:trunk`, familyId: f.id, kind: 'child', d, from: ps.map((p) => p.id), to: kids.map((k) => k.id) });
     for (const k of kids) {
       // Drop to each child with a rounded elbow where the drop leaves the bus.
-      const c = Math.min(CORNER, Math.abs(k.x - ax), Math.max(0, k.y - busY));
+      const c = elbow(k);
       let kd: string;
       if (Math.abs(k.x - ax) < 0.5 || c < 1) kd = `M${r(k.x)},${r(busY)}V${r(k.y)}`;
       else {

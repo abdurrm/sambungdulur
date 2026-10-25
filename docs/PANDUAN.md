@@ -392,7 +392,7 @@ Tekan ikon **Pengaturan pohon** (geser-geser).
 | 4 | **Kolom kartu** | Tanggal lahir, tanggal wafat, negara lahir, gambar, pekerjaan, fakta menarik. Mematikan *Tanggal lahir* ikut mematikan *Tanggal wafat*. |
 | 5 | **Tema** | Terang atau Gelap. |
 | 6 | **Bahasa** | Indonesia, Jawa, atau Inggris. |
-| 7 | **Animasikan garis keturunan terpilih** | Garis ke leluhur dan keturunan orang terpilih bergerak pelan (otomatis mati bila sistem meminta *reduced motion*). |
+| 7 | **Animasikan garis keturunan terpilih** | Garis ke leluhur dan keturunan orang terpilih bergerak pelan. Hanya aktif bila Anda menyalakannya di sini (juga saat sistem meminta *kurangi gerakan*). |
 
 Di dalam menu ini juga ada kontrol **Generasi**, selain di toolbar. Pengaturan disimpan bersama pohon.
 

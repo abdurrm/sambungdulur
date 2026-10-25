@@ -86,8 +86,6 @@ function Card(props: {
     out.push(<rect key="frame" x={left - 6} y={n.y - 6} width={n.w + 12} height={n.h + 12} rx={15} fill="none" stroke={pal.cardFrame} strokeWidth={1.4} />);
   }
   out.push(<rect key="card" className="card-bg" x={left} y={n.y} width={n.w} height={n.h} rx={12} fill={pal.card} stroke={stroke} strokeWidth={strokeW} />);
-  // Gender accent along the top edge (subtle, the photo ring carries the main distinction).
-  out.push(<path key="accent" d={`M${left + 12},${n.y + 1.2}H${left + n.w - 12}`} stroke={ring} strokeWidth={2} strokeLinecap="round" opacity={0.55} />);
 
   if (c.showPhoto) {
     const r = st.photo / 2;
@@ -172,14 +170,15 @@ function Card(props: {
   }
 
   if (props.interactive) {
-    const btn = (key: string, cx: number, cy: number, label: string, action: string, title: string) =>
+    // `quiet`: drawn in the card's own border colour (the details toggle), so it does not compete with the card.
+    const btn = (key: string, cx: number, cy: number, label: string, action: string, title: string, quiet = false) =>
       out.push(
         <g key={key} className="card-btn" data-action={action} data-person-id={n.id} role="button" aria-label={title}>
           <title>{title}</title>
           {/* Touch screens: an invisible, larger press area around the small visible button. */}
           {props.hitRadius && props.hitRadius > 10 && <circle className="card-hit" cx={cx} cy={cy} r={props.hitRadius} fill="transparent" pointerEvents="all" />}
-          <circle cx={cx} cy={cy} r={10} fill={pal.card} stroke={pal.handle} strokeWidth={1.4} />
-          <text x={cx} y={cy} dy="0.35em" textAnchor="middle" fontFamily={FONT_MONO} fontSize={12} fill={pal.handle}>
+          <circle cx={cx} cy={cy} r={10} fill={pal.card} stroke={quiet ? stroke : pal.handle} strokeWidth={quiet ? strokeW : 1.4} />
+          <text x={cx} y={cy} dy="0.35em" textAnchor="middle" fontFamily={FONT_MONO} fontSize={12} fill={quiet ? pal.dim : pal.handle}>
             {label}
           </text>
         </g>,
@@ -194,7 +193,7 @@ function Card(props: {
       btn('down', n.x, n.y + n.h, '+', 'expand-down', t('showChildren'));
     else if (props.canCollapseDown && (selected || props.lit) && !props.manualMode)
       btn('down', n.x, n.y + n.h, '−', 'collapse-down', t('hideChildren'));
-    btn('details', left + n.w - 14, n.y + 14, doc.compactCards[n.id] ? '▸' : '▾', 'toggle-card', doc.compactCards[n.id] ? t('expandDetails') : t('collapseDetails'));
+    btn('details', left + n.w - 14, n.y + 14, doc.compactCards[n.id] ? '▸' : '▾', 'toggle-card', doc.compactCards[n.id] ? t('expandDetails') : t('collapseDetails'), true);
     if (props.manualMode) {
       out.push(
         <g key="mv" className="move-handle" data-action="move" data-person-id={n.id} aria-label={t('moveHandle')}>
@@ -359,7 +358,9 @@ export function TreeSvg(props: TreeSvgProps) {
           </pattern>
         )}
         {props.trace && (
-          <style>{`.trace{animation:sd-trace 1.1s linear infinite}@keyframes sd-trace{to{stroke-dashoffset:-28}}@media (prefers-reduced-motion: reduce){.trace{animation:none}}`}</style>
+          // Only drawn when the user switched the animation on in Tree settings, so that explicit choice
+          // wins over a system-wide "reduce motion" (which otherwise left a still, dashed line).
+          <style>{`.trace{animation:sd-trace 1.1s linear infinite}@keyframes sd-trace{to{stroke-dashoffset:-28}}`}</style>
         )}
       </defs>
       {props.background !== false &&

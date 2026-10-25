@@ -299,9 +299,21 @@ export function Sidebar(props: Props) {
   const { doc, selectedId } = props;
   const [tab, setTab] = useState<Tab>('personal');
   const tabRequest = props.tabRequest;
+  // Alt+1/2/3 inside the form: focus moves to the first field of the new tab. Otherwise the focused field
+  // is hidden with its tab, focus is lost and the pop-up pulls it back to itself (Ctrl+Enter then misses).
+  const focusTabField = useRef(false);
   useEffect(() => {
-    if (tabRequest) setTab(tabRequest.tab);
+    if (!tabRequest) return;
+    focusTabField.current = !!bodyRef.current?.querySelector('[data-testid="edit-form"]')?.contains(document.activeElement);
+    setTab(tabRequest.tab);
   }, [tabRequest]);
+  useLayoutEffect(() => {
+    if (!focusTabField.current) return;
+    focusTabField.current = false;
+    const form = bodyRef.current?.querySelector('[data-testid="edit-form"]');
+    const field = form?.querySelector<HTMLElement>(':scope > .form:not([hidden]) :is(input, select, textarea)') ?? form?.querySelector<HTMLElement>('[data-testid="f-save"]');
+    field?.focus();
+  }, [tab]);
   const [editing, setEditing] = useState(false);
   useEffect(() => setEditing(false), [selectedId]);
   const editRequest = props.editRequest;

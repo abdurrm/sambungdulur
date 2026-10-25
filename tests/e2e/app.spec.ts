@@ -23,6 +23,8 @@ async function fresh(page: Page, lang: 'en' | 'id' | 'jv' | null = 'en', opts: {
 async function setLangViaSettings(page: Page, lang: string) {
   await page.getByTestId('btn-settings').click();
   await page.getByTestId('settings-menu').getByTestId('lang-select').selectOption(lang);
+  // The strings of a language load on demand: wait until it is really active.
+  await expect(page.locator('html')).toHaveAttribute('lang', lang);
   await page.keyboard.press('Escape');
 }
 
@@ -1780,7 +1782,11 @@ test('desktop: no camera buttons; the card menu uploads a photo, Ctrl+Z restores
 
   await card(page, 'My Father').locator('.card-bg').click({ button: 'right', force: true });
   await expect(page.getByTestId('pm-photo')).toContainText('Upload a photo');
-  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByTestId('pm-photo').click()]);
+  // Listen well before the click: Playwright switches on file-chooser interception asynchronously.
+  const chooserPromise = new Promise<import('@playwright/test').FileChooser>((resolve) => page.once('filechooser', resolve));
+  await page.waitForTimeout(100);
+  await page.getByTestId('pm-photo').click();
+  const chooser = await chooserPromise;
   await chooser.setFiles({ name: 'dad.png', mimeType: 'image/png', buffer: await makeImage(page, 900, 700, '#1d3557', 'image/png') });
   await page.getByTestId('crop-apply').click();
   const photo = card(page, 'My Father').locator('image');
@@ -1844,10 +1850,15 @@ test('person shortcuts: P S A C add relatives, F focuses, E edits, I picks a pho
   await expect(page.getByTestId('edit-form')).toBeVisible();
   await page.getByRole('button', { name: 'Cancel' }).click();
 
-  // I opens the photo picker for the selected person.
+  // I opens the photo picker for the selected person. (The listener is attached well before the key
+  // press: Playwright switches on file-chooser interception asynchronously.)
+  const choosers: boolean[] = [];
+  page.on('filechooser', (c) => choosers.push(c.isMultiple()));
+  await page.waitForTimeout(100);
   await canvas.focus();
-  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.keyboard.press('i')]);
-  expect(chooser.isMultiple()).toBe(false);
+  await page.keyboard.press('i');
+  await expect.poll(() => choosers.length).toBe(1);
+  expect(choosers[0]).toBe(false);
 
   // The reason is in the user's language.
   await setLangViaSettings(page, 'id');
@@ -1886,7 +1897,10 @@ test('Home, [ and ] walk the person list; Alt+1/2/3 switch tabs; Ctrl+Enter save
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('f-given')).toBeFocused();
   await page.keyboard.press('Alt+2');
-  await expect(page.getByTestId('f-profession')).toBeVisible();
+  // Focus follows to the first Biography field, and stays in the form.
+  await expect(page.getByTestId('f-place')).toBeFocused();
+  await page.waitForTimeout(200);
+  await expect(page.getByTestId('f-place')).toBeFocused();
   await page.getByTestId('f-profession').fill('Guru');
   await page.keyboard.press('Control+Enter');
   await expect(page.getByTestId('edit-form')).toHaveCount(0);
@@ -1940,4 +1954,25 @@ test('phones: zoom buttons and view info sit right above the sheet bar, with no 
   }
   // The safe-area inset is not added on top of the sheet bar.
   expect(await page.locator('.view-info').evaluate((e) => getComputedStyle(e).bottom)).toBe('68px');
+});
+
+test('cards: no coloured strip on top, quiet details toggle; the lineage animation runs even with reduced motion', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await fresh(page);
+  const me = page.locator('g.person[aria-current="true"]');
+  // No gender strip along the card's top edge any more; the photo ring carries the gender.
+  await expect(me.locator('path[opacity="0.55"]')).toHaveCount(0);
+  // The details toggle uses the card's border colour; the expand/collapse buttons keep the accent.
+  const cardStroke = await me.locator('.card-bg').getAttribute('stroke');
+  await expect(me.locator('[data-action="toggle-card"] circle:not(.card-hit)')).toHaveAttribute('stroke', cardStroke!);
+  // Lineage animation: switched on in settings, it moves although the system asks to reduce motion.
+  await page.getByTestId('btn-settings').click();
+  await page.getByTestId('set-trace').check();
+  await page.keyboard.press('Escape');
+  const trace = page.locator('path.trace').first();
+  await expect(trace).toBeAttached();
+  const offset = () => trace.evaluate((e) => parseFloat(getComputedStyle(e).strokeDashoffset));
+  const a = await offset();
+  await page.waitForTimeout(250);
+  expect(await offset()).not.toBe(a);
 });
