@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { X } from 'lucide-react';
+import { Icon } from './icons';
 import { t } from '../i18n';
 import type { PointerKind } from './viewport';
 
@@ -21,7 +21,7 @@ export function OnboardingHint(props: { pointer: PointerKind; onDismiss: () => v
       <div className="onboarding-head">
         <strong id="onboarding-title">{t('obTitle')}</strong>
         <button className="onboarding-x" onClick={props.onDismiss} aria-label={t('close')}>
-          <X size={16} />
+          <Icon id="close" size={16} />
         </button>
       </div>
       <ul>

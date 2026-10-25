@@ -14,11 +14,11 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
+    "@phosphor-icons/react": "^2.1.10",
     "d3-selection": "^3.0.0",
     "d3-transition": "^3.0.1",
     "d3-zoom": "^3.0.0",
     "fflate": "^0.8.3",
-    "lucide-react": "^1.61.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "sql.js": "^1.15.1"

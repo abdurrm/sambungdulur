@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Drawer } from '@base-ui/react/drawer';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { Icon } from './icons';
 import { SHEET_BAR_PX, type SheetSnap } from './sheetSnap';
 
 const SNAP_VALUES: Record<SheetSnap, string | number> = { bar: `${SHEET_BAR_PX}px`, half: 0.5, full: 1 };
@@ -52,7 +52,7 @@ export default function SheetFrame(props: {
                   aria-expanded={!collapsed}
                   data-testid="sheet-grip"
                 >
-                  {collapsed ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  <Icon id={collapsed ? 'caretUp' : 'caretDown'} size={16} />
                   {props.title}
                   <span className="sr-only">, {props.gripLabel}</span>
                 </button>

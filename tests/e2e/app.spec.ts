@@ -1077,3 +1077,45 @@ test('Nila & Sogan colours on screen and in PNG, JPEG and SVG exports', async ({
   const dark = await imagePixel(page, await exportImage(page, 'png', 'theme'), 'image/png', 'corner');
   expect(dark.slice(0, 3)).toEqual([12, 10, 9]);
 });
+
+test('one icon per action across toolbar, panel, card menu and shortcut list; active tools are filled', async ({ page }) => {
+  await fresh(page);
+  const iconOf = (loc: ReturnType<Page['locator']>) => loc.locator('svg[data-icon]').first();
+  const pathsOf = (loc: ReturnType<Page['locator']>) => iconOf(loc).innerHTML();
+  // Person actions: the editor panel and the card menu draw the same icons.
+  const panelIcons: Record<string, string> = {};
+  for (const id of ['add-parents', 'add-sibling', 'add-partner', 'add-child', 'focus-person', 'delete-person']) {
+    panelIcons[id] = await pathsOf(page.getByTestId('sidebar').getByTestId(id));
+  }
+  await card(page, 'My Father').locator('.card-bg').click({ button: 'right', force: true });
+  const menuIds: Record<string, string> = { 'add-parents': 'pm-addParents', 'add-sibling': 'pm-addSibling', 'add-partner': 'pm-addPartner', 'add-child': 'pm-addChild', 'focus-person': 'pm-focus', 'delete-person': 'pm-delete' };
+  for (const [panel, menu] of Object.entries(menuIds)) expect(await pathsOf(page.getByTestId(menu)), menu).toBe(panelIcons[panel]);
+  await expect(iconOf(page.getByTestId('pm-edit'))).toHaveAttribute('data-icon', 'edit');
+  await expect(iconOf(page.getByTestId('sidebar').getByTestId('edit-person'))).toHaveAttribute('data-icon', 'edit');
+  await page.keyboard.press('Escape');
+
+  // The shortcut list uses the toolbar's icons.
+  await page.getByTestId('tree-canvas').focus();
+  await page.keyboard.press('?');
+  const list = page.getByTestId('shortcuts-dialog');
+  await expect(list.locator('svg[data-icon="search"]')).toHaveCount(1);
+  await expect(list.locator('svg[data-icon="zoomIn"]')).toHaveCount(1);
+  expect(await list.locator('svg[data-icon="zoomIn"]').innerHTML()).toBe(await pathsOf(page.getByTestId('btn-zoom-in')));
+  await page.keyboard.press('Escape');
+
+  // Regular weight at rest, fill while active.
+  const search = iconOf(page.getByTestId('btn-search'));
+  await expect(search).toHaveAttribute('data-weight', 'regular');
+  await page.getByTestId('btn-search').click();
+  await expect(search).toHaveAttribute('data-weight', 'fill');
+  await page.keyboard.press('Escape');
+  await expect(search).toHaveAttribute('data-weight', 'regular');
+  await expect(iconOf(page.getByTestId('btn-export'))).toHaveAttribute('data-weight', 'fill');
+  await page.evaluate(() => localStorage.setItem('sambungdulur.manualInfoSeen', '1'));
+  await page.getByTestId('btn-manual').click();
+  await expect(iconOf(page.getByTestId('btn-manual'))).toHaveAttribute('data-weight', 'fill');
+  // Every icon-only tool still has an accessible name.
+  for (const b of await page.locator('.toolbar button, .zoom-controls button').all()) {
+    expect(((await b.getAttribute('aria-label')) ?? (await b.textContent()) ?? '').trim().length).toBeGreaterThan(0);
+  }
+});

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileUp, FolderOpen, FilePlus2 } from 'lucide-react';
+import { Icon } from './icons';
 import { Modal } from './dialogs';
 import { t } from '../i18n';
 
@@ -35,7 +35,7 @@ export function OpenDialog(props: {
     <Modal title={t('openDialogTitle')} onClose={() => !busy && props.onClose()} wide testId="open-dialog">
       <p className="note" style={{ fontSize: 13.5 }}>{t('openIntro')}</p>
       <label className="choice" style={cursor}>
-        <span className="badge" style={{ color: 'var(--accent-text)', background: 'var(--accent-soft)' }}><FileUp size={20} /></span>
+        <span className="badge" style={{ color: 'var(--accent-text)', background: 'var(--accent-soft)' }}><Icon id="openFile" size={20} /></span>
         <span>
           <div className="t">{t('openFile')}</div>
           <div className="d">{t('openFileDesc')}</div>
@@ -54,7 +54,7 @@ export function OpenDialog(props: {
         />
       </label>
       <label className="choice" style={cursor}>
-        <span className="badge" style={{ color: 'var(--male)', background: 'var(--hover)' }}><FolderOpen size={20} /></span>
+        <span className="badge" style={{ color: 'var(--male)', background: 'var(--hover)' }}><Icon id="linkFolder" size={20} /></span>
         <span>
           <div className="t">{t('linkFolder')}</div>
           <div className="d">
@@ -78,7 +78,7 @@ export function OpenDialog(props: {
         />
       </label>
       <label className="choice" style={cursor}>
-        <span className="badge" style={{ color: 'var(--sogan-text)', background: 'var(--sogan-soft)' }}><FolderOpen size={20} /></span>
+        <span className="badge" style={{ color: 'var(--sogan-text)', background: 'var(--sogan-soft)' }}><Icon id="open" size={20} /></span>
         <span>
           <div className="t">{t('linkFiles')}</div>
           <div className="d">{t('linkFilesDesc')}</div>
@@ -98,7 +98,7 @@ export function OpenDialog(props: {
         />
       </label>
       <button className="choice" onClick={props.onNew} disabled={busy} data-testid="new-tree">
-        <span className="badge" style={{ color: 'var(--muted)', background: 'var(--hover)' }}><FilePlus2 size={20} /></span>
+        <span className="badge" style={{ color: 'var(--muted)', background: 'var(--hover)' }}><Icon id="newTree" size={20} /></span>
         <span>
           <div className="t">{t('newTree')}</div>
           <div className="d">{t('newTreeDesc')}</div>

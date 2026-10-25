@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type Ref } from 'react';
 import type { SheetSnap } from './sheetSnap';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Pencil, Trash2, UserPlus, Users, Baby, Heart, ImagePlus, ImageMinus, Crosshair } from 'lucide-react';
+import { Icon } from './icons';
 import type { Gender, PersonFields, TreeDoc } from '../model/types';
 import { buildGedcomDate, formatDate, parseSimpleDate } from '../model/dates';
 import { COUNTRIES } from '../model/countries';
@@ -287,9 +287,12 @@ export function Sidebar(props: Props) {
   let body;
   if (!p) {
     body = (
-      <p className="hint" data-testid="no-selection">
-        {t('sidebarHint')}
-      </p>
+      <div className="empty-state">
+        <Icon id="tree" size={44} weight="duotone" className="empty-icon" />
+        <p className="hint" data-testid="no-selection">
+          {t('sidebarHint')}
+        </p>
+      </div>
     );
   } else if (editing) {
     body = (
@@ -360,7 +363,7 @@ export function Sidebar(props: Props) {
               <p className="note">{t('noImage')}</p>
             )}
             <label className="btn">
-              <ImagePlus size={16} /> {p.photoId ? t('replaceImage') : t('uploadImage')}
+              <Icon id="uploadImage" size={16} /> {p.photoId ? t('replaceImage') : t('uploadImage')}
               <input
                 type="file"
                 accept="image/*,.heic,.heif,.webp"
@@ -375,7 +378,7 @@ export function Sidebar(props: Props) {
             </label>
             {p.photoId && (
               <button className="btn danger" onClick={props.onDeleteImage} data-testid="delete-image">
-                <ImageMinus size={16} /> {t('deleteImage')}
+                <Icon id="deleteImage" size={16} /> {t('deleteImage')}
               </button>
             )}
             {gallery.length > 0 && (
@@ -395,21 +398,21 @@ export function Sidebar(props: Props) {
     );
     const actions = (
       <>
-        <ActionButton state={acts.edit} className="btn primary" onClick={() => setEditing(true)} testId="edit-person" icon={<Pencil size={16} />} label={t('editPerson')} />
+        <ActionButton state={acts.edit} className="btn primary" onClick={() => setEditing(true)} testId="edit-person" icon={<Icon id="edit" size={16} weight="fill" />} label={t('editPerson')} />
         <div className="section-label">{t('addRelative')}</div>
         <div className="btn-grid">
-          <ActionButton state={acts.addParents} onClick={props.onAddParents} testId="add-parents" icon={<Users size={16} />} label={t('addParents')} />
-          <ActionButton state={acts.addSibling} onClick={props.onAddSibling} testId="add-sibling" icon={<UserPlus size={16} />} label={t('addSibling')} />
-          <ActionButton state={acts.addPartner} onClick={props.onAddPartner} testId="add-partner" icon={<Heart size={16} />} label={t('addPartner')} />
-          <ActionButton state={acts.addChild} onClick={props.onAddChild} testId="add-child" icon={<Baby size={16} />} label={t('addChild')} />
+          <ActionButton state={acts.addParents} onClick={props.onAddParents} testId="add-parents" icon={<Icon id="addParents" size={16} />} label={t('addParents')} />
+          <ActionButton state={acts.addSibling} onClick={props.onAddSibling} testId="add-sibling" icon={<Icon id="addSibling" size={16} />} label={t('addSibling')} />
+          <ActionButton state={acts.addPartner} onClick={props.onAddPartner} testId="add-partner" icon={<Icon id="addPartner" size={16} />} label={t('addPartner')} />
+          <ActionButton state={acts.addChild} onClick={props.onAddChild} testId="add-child" icon={<Icon id="addChild" size={16} />} label={t('addChild')} />
         </div>
       </>
     );
     const rest = (
       <>
-        <ActionButton state={acts.focus} className="btn ghost" onClick={props.onFocus} testId="focus-person" icon={<Crosshair size={16} />} label={t('showFrom')} />
+        <ActionButton state={acts.focus} className="btn ghost" onClick={props.onFocus} testId="focus-person" icon={<Icon id="focus" size={16} />} label={t('showFrom')} />
         <hr className="sep" />
-        <ActionButton state={acts.delete} className="btn danger" onClick={props.onDelete} testId="delete-person" icon={<Trash2 size={16} />} label={t('deletePerson')} />
+        <ActionButton state={acts.delete} className="btn danger" onClick={props.onDelete} testId="delete-person" icon={<Icon id="delete" size={16} />} label={t('deletePerson')} />
       </>
     );
     // In the phone sheet the add-relative actions come right after the name so the half-height sheet shows them.
@@ -460,7 +463,7 @@ export function Sidebar(props: Props) {
       >
         {props.onResize && !props.hidden && <PanelResizer width={props.width ?? PANEL_DEFAULT} onResize={props.onResize} />}
         <button className="sidebar-grip" onClick={props.onToggleHidden} aria-expanded={!props.hidden}>
-          {props.hidden ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          <Icon id={props.hidden ? 'caretUp' : 'caretDown'} size={16} />
           {p ? displayName(p, doc.settings) : t('editor')}
           <span className="sr-only">, {toggleLabel}</span>
         </button>
@@ -476,7 +479,7 @@ export function Sidebar(props: Props) {
         data-tip={toggleLabel}
         data-testid="sidebar-toggle"
       >
-        {props.hidden ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+        <Icon id={props.hidden ? 'caretRight' : 'caretLeft'} size={16} />
       </button>
     </>
   );

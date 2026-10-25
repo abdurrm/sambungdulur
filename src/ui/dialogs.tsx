@@ -4,6 +4,7 @@ import type { TreeDoc } from '../model/types';
 import { addChildOptions, displayName, type AddChildMode } from '../model/relations';
 import { t } from '../i18n';
 import { SHORTCUTS, showKeys } from './shortcuts';
+import { commandIcon, Icon } from './icons';
 
 /**
  * Every dialog goes through this wrapper so focus trapping, Escape, outside presses and focus return
@@ -131,7 +132,12 @@ export function ShortcutsDialog(props: { onClose: () => void }) {
                   </span>
                 ))}
               </th>
-              <td>{t(s.label)}</td>
+              <td>
+                <span className="shortcut-label">
+                  {commandIcon(s.command) ? <Icon id={commandIcon(s.command)!} size={16} /> : <span className="icon-gap" />}
+                  {t(s.label)}
+                </span>
+              </td>
             </tr>
           ))}
         </tbody>

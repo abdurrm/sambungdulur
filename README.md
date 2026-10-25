@@ -126,4 +126,4 @@ Laporan bug, perbaikan, terjemahan, dan dokumentasi sangat diterima. Baca [CONTR
 
 Proyek ini dirilis di bawah **[lisensi MIT](LICENSE)** © 2026 Abdur Rohman Muhammad.
 
-Kode ditulis untuk proyek ini; tidak ada kode, teks, atau gambar dari family-tree-builder.com yang disalin. Gaya visual terinspirasi dari skill *archify* (MIT). Ikon dari [Lucide](https://lucide.dev) (ISC).
+Kode ditulis untuk proyek ini; tidak ada kode, teks, atau gambar dari family-tree-builder.com yang disalin. Gaya visual terinspirasi dari skill *archify* (MIT). Ikon dari [Phosphor Icons](https://phosphoricons.com) (MIT).

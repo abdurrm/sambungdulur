@@ -411,6 +411,10 @@ kbd {
   border-bottom-width: 2px; background: var(--hover); color: var(--text); white-space: nowrap;
 }
 .details.shortcuts th { width: 46%; }
+.shortcut-label { display: inline-flex; align-items: center; gap: 8px; }
+.shortcut-label svg, .icon-gap { flex: none; width: 16px; color: var(--dim); }
+.empty-state { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; padding-top: 8px; }
+.empty-icon { color: var(--accent); }
 .canvas-wrap:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
 .tooltip-positioner { z-index: 300; pointer-events: none; }
 .tooltip {

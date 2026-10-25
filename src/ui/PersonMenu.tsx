@@ -1,6 +1,5 @@
 import { Menu } from '@base-ui/react/menu';
-import { Baby, Crosshair, Heart, Pencil, Trash2, UserPlus, Users } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Icon } from './icons';
 import type { TreeDoc } from '../model/types';
 import { displayName } from '../model/relations';
 import { personActionLabel, personActions, type PersonActionId } from '../model/personActions';
@@ -8,15 +7,6 @@ import { personActionLabel, personActions, type PersonActionId } from '../model/
 /** Anything the menu can be positioned against: the card's ⋯ button, or the pointer for right-click / long-press. */
 export type MenuAnchor = Element | { getBoundingClientRect: () => DOMRect };
 
-const ICONS: Record<PersonActionId, ReactNode> = {
-  edit: <Pencil size={16} />,
-  addParents: <Users size={16} />,
-  addSibling: <UserPlus size={16} />,
-  addPartner: <Heart size={16} />,
-  addChild: <Baby size={16} />,
-  focus: <Crosshair size={16} />,
-  delete: <Trash2 size={16} />,
-};
 const GROUPS: PersonActionId[][] = [['edit'], ['addParents', 'addSibling', 'addPartner', 'addChild'], ['focus'], ['delete']];
 
 /**
@@ -52,7 +42,7 @@ export default function PersonMenu(props: {
                       onClick={() => props.onAction(id, props.personId)}
                       data-testid={`pm-${id}`}
                     >
-                      {ICONS[id]}
+                      <Icon id={id} size={16} />
                       <span className="menu-text">
                         {personActionLabel(id)}
                         {a.reason && <small className="menu-reason" data-testid={`pm-${id}-reason`}>{a.reason}</small>}
