@@ -30,6 +30,7 @@ import { initialLang, LANG_KEY, setLang as setI18nLang, t, type Lang } from './i
 import { getViewport, useViewport } from './ui/viewport';
 import { commandFor, keyContext, shortcutText, type Command } from './ui/shortcuts';
 import { kinNeighbour } from './model/kinNav';
+import { stepGeneration } from './model/generations';
 import { personLabel } from './model/a11y';
 import { ONBOARDED_KEY, OnboardingHint } from './ui/OnboardingHint';
 
@@ -660,9 +661,36 @@ export default function App() {
     announce(t('a11ySelected', { who: personLabel(doc, id) }));
     requestAnimationFrame(() => canvas.current?.ensureVisible(id));
   };
+  const toggleTheme = () => {
+    const theme = doc.settings.theme === 'light' ? 'dark' : 'light';
+    patchSettings({ theme });
+    announce(t('a11yTheme', { theme: theme === 'light' ? t('light') : t('dark') }));
+  };
+  const stepGens = (key: 'ancestorGenerations' | 'descendantGenerations', delta: 1 | -1) => {
+    const next = { ...doc.settings, [key]: stepGeneration(doc.settings[key], delta) };
+    patchSettings({ [key]: next[key] });
+    const show = (v: number) => (v < 0 ? t('all') : String(v));
+    announce(t('a11yGens', { up: show(next.ancestorGenerations), down: show(next.descendantGenerations) }));
+  };
   const onCommand = (cmd: Command): boolean => {
     const overlay = !!dialog || !!cardMenu;
     switch (cmd) {
+      // Browser-level chords (open file, history, address bar…) are swallowed even behind a dialog,
+      // but they only act when nothing is open on top.
+      case 'open':
+      case 'export':
+        if (overlay) return true;
+        setPopover(null);
+        setDialog({ kind: cmd });
+        return true;
+      case 'settings':
+        if (overlay) return true;
+        setPopover('settings');
+        return true;
+      case 'theme':
+        if (overlay) return true;
+        toggleTheme();
+        return true;
       case 'escape':
         // An open dialog or menu owns Escape (Base UI closes it); don't also close popovers behind it.
         if (overlay) return false;
@@ -682,7 +710,11 @@ export default function App() {
         if (overlay) return false;
         return applyHistory(cmd);
       case 'help':
-        if (overlay) return false;
+        if (dialog?.kind === 'shortcuts') {
+          setDialog(null);
+          return true;
+        }
+        if (overlay) return true;
         setPopover(null);
         setDialog({ kind: 'shortcuts' });
         return true;
@@ -697,6 +729,17 @@ export default function App() {
         return true;
       case 'center':
         canvas.current?.fit();
+        return true;
+      case 'manual':
+        toggleManual();
+        return true;
+      case 'ancMore':
+      case 'ancLess':
+        stepGens('ancestorGenerations', cmd === 'ancMore' ? 1 : -1);
+        return true;
+      case 'descMore':
+      case 'descLess':
+        stepGens('descendantGenerations', cmd === 'descMore' ? 1 : -1);
         return true;
       case 'navUp':
       case 'navDown':
@@ -761,7 +804,7 @@ export default function App() {
         )}
         <div className="spacer" />
         <nav className="toolbar" aria-label={t('treeTools')}>
-          <button className="tool-btn keep-label" onClick={() => setDialog({ kind: 'open' })} data-testid="btn-open" {...tip(t('openTitle'))}>
+          <button className="tool-btn keep-label" onClick={() => setDialog({ kind: 'open' })} data-testid="btn-open" {...tip(t('openTitle'), 'open')}>
             <Icon id="open" /> <span className="label">{t('open')}</span>
           </button>
           <button
@@ -774,7 +817,7 @@ export default function App() {
             {/* Phones: the save status rides on the Save button instead of a separate chip. */}
             {narrow && <span className={`save-badge${dirty ? ' dirty' : ''}`} data-testid="status-chip" aria-hidden="true" />}
           </button>
-          <button className="tool-btn keep-label primary" onClick={() => setDialog({ kind: 'export' })} data-testid="btn-export" {...tip(t('export'))}>
+          <button className="tool-btn keep-label primary" onClick={() => setDialog({ kind: 'export' })} data-testid="btn-export" {...tip(t('export'), 'export')}>
             <Icon id="export" weight="fill" /> <span className="label">{t('export')}</span>
           </button>
           {!narrow && <span className="tool-sep" />}
@@ -815,7 +858,7 @@ export default function App() {
               <LanguageSelect lang={lang} onChange={changeLang} />
             </span>
           )}
-          <Suspense fallback={<button disabled className={`tool-btn${popover === 'settings' ? ' active' : ''}`} data-testid="btn-settings" {...tip(t('treeSettings'))}>
+          <Suspense fallback={<button disabled className={`tool-btn${popover === 'settings' ? ' active' : ''}`} data-testid="btn-settings" {...tip(t('treeSettings'), 'settings')}>
                 <Icon id="settings" active={popover === 'settings'} /> <span className="label">{t('treeSettings')}</span>
               </button>}>
           <ToolPopover
@@ -824,7 +867,7 @@ export default function App() {
             label={t('treeSettings')}
             testId="settings-menu"
             trigger={
-              <button className={`tool-btn${popover === 'settings' ? ' active' : ''}`} data-testid="btn-settings" {...tip(t('treeSettings'))}>
+              <button className={`tool-btn${popover === 'settings' ? ' active' : ''}`} data-testid="btn-settings" {...tip(t('treeSettings'), 'settings')}>
                 <Icon id="settings" active={popover === 'settings'} /> <span className="label">{t('treeSettings')}</span>
               </button>
             }
@@ -834,7 +877,7 @@ export default function App() {
           </Suspense>
           {wide ? (
             <>
-              <button className={`tool-btn${manualMode ? ' active' : ''}`} onClick={toggleManual} data-testid="btn-manual" {...tip(t('manualLayout'))}>
+              <button className={`tool-btn${manualMode ? ' active' : ''}`} onClick={toggleManual} data-testid="btn-manual" {...tip(t('manualLayout'), 'manual')}>
                 <Icon id="manual" active={manualMode} /> <span className="label">{t('manualLayout')}</span>
               </button>
               <button className="tool-btn" onClick={() => setDialog({ kind: 'confirmReset' })} data-testid="btn-reset" {...tip(t('resetTree'))}>
@@ -844,7 +887,7 @@ export default function App() {
                 className="tool-btn"
                 onClick={() => patchSettings({ theme: doc.settings.theme === 'light' ? 'dark' : 'light' })}
                 data-testid="btn-theme"
-                {...tip(t('toggleTheme'))}
+                {...tip(t('toggleTheme'), 'theme')}
               >
                 <Icon id={doc.settings.theme === 'light' ? 'themeDark' : 'themeLight'} />
               </button>
@@ -871,6 +914,7 @@ export default function App() {
               onLang={changeLang}
               onInstall={() => installEvt?.prompt().then(() => setInstallEvt(null))}
               onReset={() => setDialog({ kind: 'confirmReset' })}
+              onShortcuts={() => setDialog({ kind: 'shortcuts' })}
             />
             </Suspense>
           )}
@@ -1118,7 +1162,7 @@ export default function App() {
         <Toasts />
         {viewport.pointer === 'fine' && <TooltipLayer />}
       </Suspense>
-      <KeyboardShortcuts onCommand={onCommand} />
+      <KeyboardShortcuts onCommand={onCommand} hasSelection={!!selectedId && !!doc.persons[selectedId]} />
       <div className="sr-only" role="status" aria-live="polite" data-testid="live-region">
         {announcement}
       </div>
@@ -1126,13 +1170,13 @@ export default function App() {
   );
 }
 
-function KeyboardShortcuts(props: { onCommand: (cmd: Command) => boolean }) {
+function KeyboardShortcuts(props: { onCommand: (cmd: Command) => boolean; hasSelection: boolean }) {
   const ref = useRef(props);
   ref.current = props;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.isComposing) return;
-      const cmd = commandFor(e, keyContext(e.target));
+      const cmd = commandFor(e, { ...keyContext(e.target), hasSelection: ref.current.hasSelection });
       if (cmd && ref.current.onCommand(cmd)) e.preventDefault();
     };
     window.addEventListener('keydown', onKey);

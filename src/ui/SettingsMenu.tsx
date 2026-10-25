@@ -1,19 +1,13 @@
 import type { DateFormat, FontSize, TreeSettings } from '../model/types';
 import { LANGS, t, type Lang } from '../i18n';
 import { REPO_URL } from '../links';
+import { stepGeneration } from '../model/generations';
 
 const DATE_FORMATS: DateFormat[] = ['MM/DD/YYYY', 'MM.DD.YYYY', 'DD/MM/YYYY', 'DD.MM.YYYY', 'YYYY'];
 
 export function GenerationControl(props: { settings: TreeSettings; onChange: (patch: Partial<TreeSettings>) => void; compact?: boolean }) {
   const s = props.settings;
-  const step = (key: 'ancestorGenerations' | 'descendantGenerations', delta: number) => {
-    // Sequence: 0 … 10, then All (-1).
-    const cur = s[key];
-    let next: number;
-    if (delta > 0) next = cur < 0 || cur >= 10 ? -1 : cur + 1;
-    else next = cur < 0 ? 10 : Math.max(0, cur - 1);
-    props.onChange({ [key]: next });
-  };
+  const step = (key: 'ancestorGenerations' | 'descendantGenerations', delta: 1 | -1) => props.onChange({ [key]: stepGeneration(s[key], delta) });
   const show = (v: number) => (v < 0 ? t('all') : String(v));
   return (
     <div className="gen-control" role="group" aria-label={t('generationsShown')} data-testid="gen-control">

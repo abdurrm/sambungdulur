@@ -2,8 +2,8 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Dialog } from '@base-ui/react/dialog';
 import type { TreeDoc } from '../model/types';
 import { addChildOptions, displayName, type AddChildMode } from '../model/relations';
-import { t } from '../i18n';
-import { SHORTCUTS, showKeys } from './shortcuts';
+import { t, type Key } from '../i18n';
+import { SHORTCUT_GROUPS, SHORTCUTS, showKeys, type ShortcutGroup } from './shortcuts';
 import { commandIcon, Icon } from './icons';
 
 /**
@@ -115,33 +115,67 @@ export function ManualLayoutInfo(props: { onContinue: () => void; onCancel: () =
 }
 
 
-/** "?" help: every shortcut from the registry, in the current language. */
+const GROUP_LABEL: Record<ShortcutGroup, Key> = {
+  file: 'grpFile',
+  navigation: 'grpNavigation',
+  person: 'grpPerson',
+  view: 'grpView',
+  history: 'grpHistory',
+  help: 'grpHelp',
+};
+
+/** Shortcut list (Ctrl+H, F1, ?): every shortcut from the registry, grouped, in the current language, with a filter. */
 export function ShortcutsDialog(props: { onClose: () => void }) {
-  const rows = SHORTCUTS.filter((s) => s.keys.length);
+  const [q, setQ] = useState('');
+  const needle = q.trim().toLowerCase();
+  const rows = SHORTCUTS.filter((s) => s.keys.length).filter(
+    (s) => !needle || t(s.label).toLowerCase().includes(needle) || s.keys.some((k) => showKeys(k).toLowerCase().includes(needle)),
+  );
   return (
     <Modal title={t('shortcutsTitle')} onClose={props.onClose} testId="shortcuts-dialog">
-      <table className="details shortcuts">
-        <tbody>
-          {rows.map((s) => (
-            <tr key={s.command}>
-              <th>
-                {s.keys.map((k, i) => (
-                  <span key={i}>
-                    {i > 0 && ' / '}
-                    <kbd>{showKeys(k)}</kbd>
-                  </span>
-                ))}
-              </th>
-              <td>
-                <span className="shortcut-label">
-                  {commandIcon(s.command) ? <Icon id={commandIcon(s.command)!} size={16} /> : <span className="icon-gap" />}
-                  {t(s.label)}
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <input
+        type="search"
+        className="input"
+        placeholder={t('shortcutsFilter')}
+        aria-label={t('shortcutsFilter')}
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        data-testid="shortcuts-filter"
+      />
+      <div className="shortcut-groups">
+        {SHORTCUT_GROUPS.map((g) => {
+          const items = rows.filter((s) => s.group === g);
+          if (!items.length) return null;
+          return (
+            <section key={g} className="shortcut-group" data-testid={`shortcut-group-${g}`}>
+              <h4 className="section-label">{t(GROUP_LABEL[g])}</h4>
+              <table className="details shortcuts">
+                <tbody>
+                  {items.map((s) => (
+                    <tr key={s.command} data-testid={`shortcut-${s.command}`}>
+                      <th>
+                        {s.keys.map((k, i) => (
+                          <span key={i}>
+                            {i > 0 && ' / '}
+                            <kbd>{showKeys(k)}</kbd>
+                          </span>
+                        ))}
+                      </th>
+                      <td>
+                        <span className="shortcut-label">
+                          {commandIcon(s.command) ? <Icon id={commandIcon(s.command)!} size={16} /> : <span className="icon-gap" />}
+                          {t(s.label)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          );
+        })}
+        {!rows.length && <p className="note" data-testid="shortcuts-none">{t('shortcutsNone', { q })}</p>}
+      </div>
       <p className="note">{t('shortcutsNote')}</p>
       <div className="actions">
         <button className="btn primary" onClick={props.onClose} data-testid="shortcuts-ok">{t('ok')}</button>

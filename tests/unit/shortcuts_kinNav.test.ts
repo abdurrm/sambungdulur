@@ -27,7 +27,8 @@ describe('shortcut registry', () => {
     expect(commandFor({ key: '?', shiftKey: true }, free)).toBe('help');
     expect(commandFor({ key: 'Escape' }, free)).toBe('escape');
     expect(commandFor({ key: 'x' }, free)).toBeNull();
-    expect(commandFor({ key: 'ArrowUp', ctrlKey: true }, free)).toBeNull();
+    expect(commandFor({ key: 'ArrowUp', ctrlKey: true }, free)).toBe('ancMore');
+    expect(commandFor({ key: 'ArrowUp', altKey: true }, free)).toBeNull();
   });
 
   it('stays out of the way while typing, except for save, search and Escape', () => {

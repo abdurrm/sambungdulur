@@ -1119,3 +1119,132 @@ test('one icon per action across toolbar, panel, card menu and shortcut list; ac
     expect(((await b.getAttribute('aria-label')) ?? (await b.textContent()) ?? '').trim().length).toBeGreaterThan(0);
   }
 });
+
+test('Ctrl+H, F1 and ? open the grouped shortcut list; the filter narrows it, in every language', async ({ page }) => {
+  await fresh(page);
+  await page.evaluate(() => {
+    const w = window as unknown as { keys: string[] };
+    w.keys = [];
+    window.addEventListener('keydown', (e) => w.keys.push(`${e.key}:${e.defaultPrevented}`));
+  });
+  const list = page.getByTestId('shortcuts-dialog');
+  await page.getByTestId('tree-canvas').focus();
+  await page.keyboard.press('Control+h');
+  await expect(list).toBeVisible();
+  // The browser's history shortcut is cancelled.
+  expect(await page.evaluate(() => (window as unknown as { keys: string[] }).keys)).toContain('h:true');
+  for (const [g, name] of [['file', 'File'], ['navigation', 'Navigation'], ['person', 'People'], ['view', 'View'], ['history', 'History'], ['help', 'Help']]) {
+    await expect(list.getByTestId(`shortcut-group-${g}`).locator('h4')).toHaveText(name);
+  }
+  await expect(list.getByTestId('shortcut-help')).toContainText(/Ctrl\+H/);
+  await expect(list.getByTestId('shortcut-help')).toContainText('F1');
+  // Filter by words or keys.
+  await list.getByTestId('shortcuts-filter').fill('zoom');
+  await expect(list.getByTestId('shortcut-zoomIn')).toBeVisible();
+  await expect(list.getByTestId('shortcut-zoomOut')).toBeVisible();
+  await expect(list.getByTestId('shortcut-save')).toHaveCount(0);
+  await expect(list.getByTestId('shortcut-group-file')).toHaveCount(0);
+  await list.getByTestId('shortcuts-filter').fill('ctrl+e');
+  await expect(list.locator('tr')).toHaveCount(1);
+  await expect(list.getByTestId('shortcut-export')).toBeVisible();
+  await list.getByTestId('shortcuts-filter').fill('qwerty');
+  await expect(list.getByTestId('shortcuts-none')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(list).toBeHidden();
+
+  await page.getByTestId('tree-canvas').focus();
+  await page.keyboard.press('F1');
+  await expect(list).toBeVisible();
+  await page.keyboard.press('Control+h'); // toggles closed
+  await expect(list).toBeHidden();
+  await page.getByTestId('tree-canvas').focus();
+  await page.keyboard.press('?');
+  await expect(list).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await setLangViaSettings(page, 'id');
+  await page.keyboard.press('Control+h');
+  await expect(list.getByTestId('shortcut-group-file').locator('h4')).toHaveText('Berkas');
+  await expect(list.getByTestId('shortcut-group-view').locator('h4')).toHaveText('Tampilan');
+  await expect(list.getByTestId('shortcut-theme')).toContainText('Ganti tema terang / gelap');
+  await page.keyboard.press('Escape');
+  await setLangViaSettings(page, 'jv');
+  await page.keyboard.press('Control+h');
+  await expect(list.getByTestId('shortcut-group-help').locator('h4')).toHaveText('Pitulung');
+});
+
+test('file and view shortcuts: Ctrl+O, Ctrl+E, Ctrl+K, Ctrl+comma, Ctrl+Shift+L, M and generations', async ({ page }) => {
+  await fresh(page);
+  const canvas = page.getByTestId('tree-canvas');
+  await canvas.focus();
+  await page.keyboard.press('Control+o');
+  await expect(page.getByTestId('open-dialog')).toBeVisible();
+  // Behind an open dialog other shortcuts do nothing.
+  await page.keyboard.press('Control+e');
+  await expect(page.getByTestId('export-dialog')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await canvas.focus();
+  await page.keyboard.press('Control+e');
+  await expect(page.getByTestId('export-dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await canvas.focus();
+  await page.keyboard.press('Control+k');
+  await expect(page.getByTestId('search-panel')).toBeVisible();
+  await expect(page.getByTestId('search-input')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await canvas.focus();
+  await page.keyboard.press('Control+,');
+  await expect(page.getByTestId('settings-menu')).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await canvas.focus();
+  await page.keyboard.press('Control+Shift+L');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.getByTestId('live-region')).toContainText('Dark theme');
+  await page.keyboard.press('Control+Shift+L');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+
+  // Generations: Ctrl+arrows for ancestors, Ctrl+Shift+arrows for descendants (All → 10 → All).
+  await expect(page.getByTestId('gen-up-value')).toHaveText('All');
+  await page.keyboard.press('Control+ArrowDown');
+  await expect(page.getByTestId('gen-up-value')).toHaveText('10');
+  await expect(page.getByTestId('live-region')).toContainText('ancestors 10');
+  await page.keyboard.press('Control+ArrowUp');
+  await expect(page.getByTestId('gen-up-value')).toHaveText('All');
+  await page.keyboard.press('Control+Shift+ArrowDown');
+  await expect(page.getByTestId('gen-down-value')).toHaveText('10');
+  await page.keyboard.press('Control+Shift+ArrowUp');
+  await expect(page.getByTestId('gen-down-value')).toHaveText('All');
+  await expect(page.getByTestId('selected-name')).toHaveText('Me'); // Ctrl+arrows don't move the selection
+
+  // M toggles manual layout from the tree, but not while typing or from the header.
+  await page.evaluate(() => localStorage.setItem('sambungdulur.manualInfoSeen', '1'));
+  const title = page.getByTestId('tree-title');
+  await title.focus();
+  await page.keyboard.press('End');
+  await page.keyboard.press('m');
+  await expect(title).toHaveValue(/m$/);
+  await page.getByTestId('btn-open').focus();
+  await page.keyboard.press('m');
+  await expect(page.getByTestId('manual-bar')).toHaveCount(0);
+  await canvas.focus();
+  await page.keyboard.press('m');
+  await expect(page.getByTestId('manual-bar')).toBeVisible();
+  await page.keyboard.press('m');
+  await expect(page.getByTestId('manual-bar')).toHaveCount(0);
+
+  // Tooltips take their keys from the registry.
+  await page.getByTestId('btn-open').hover();
+  await expect(page.getByTestId('tooltip')).toContainText(/Ctrl\+O|⌘O/);
+});
+
+test('the overflow menu lists shortcuts for its items and opens the shortcut list', async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 900 });
+  await fresh(page);
+  await expect(page.getByTestId('btn-more')).toBeEnabled();
+  await page.getByTestId('btn-more').click();
+  await expect(page.getByTestId('more-manual')).toContainText('M');
+  await expect(page.getByTestId('more-theme')).toContainText(/Ctrl\+Shift\+L|⌘⇧L/);
+  await page.getByTestId('more-shortcuts').click();
+  await expect(page.getByTestId('shortcuts-dialog')).toBeVisible();
+});

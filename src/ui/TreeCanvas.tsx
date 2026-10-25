@@ -280,6 +280,7 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
       ref={wrapRef}
       className="canvas-wrap"
       data-testid="tree-canvas"
+      data-key-scope="tree"
       tabIndex={0}
       role="group"
       aria-label={tx('canvasLabel')}

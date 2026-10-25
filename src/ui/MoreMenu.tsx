@@ -2,6 +2,7 @@ import { Menu } from '@base-ui/react/menu';
 import { Icon } from './icons';
 import { LANGS, t, type Lang } from '../i18n';
 import { GUIDE_URL } from '../links';
+import { shortcutText } from './shortcuts';
 
 /** Overflow menu for medium and narrow layouts: secondary tools, with the destructive reset set apart. */
 export default function MoreMenu(props: {
@@ -16,6 +17,7 @@ export default function MoreMenu(props: {
   onLang: (l: Lang) => void;
   onInstall: () => void;
   onReset: () => void;
+  onShortcuts: () => void;
 }) {
   return (
     <Menu.Root open={props.open} onOpenChange={props.onOpenChange}>
@@ -28,9 +30,15 @@ export default function MoreMenu(props: {
             <Menu.Item className="menu-item" onClick={props.onManual} data-testid="more-manual">
               <Icon id="manual" size={16} active={props.manualMode} /> {t('manualLayout')}
               {props.manualMode && <span className="menu-hint">✓</span>}
+              <kbd className="menu-kbd">{shortcutText('manual')}</kbd>
             </Menu.Item>
             <Menu.Item className="menu-item" onClick={props.onTheme} data-testid="more-theme">
               <Icon id={props.theme === 'light' ? 'themeDark' : 'themeLight'} size={16} /> {props.theme === 'light' ? t('darkTheme') : t('lightTheme')}
+              <kbd className="menu-kbd">{shortcutText('theme')}</kbd>
+            </Menu.Item>
+            <Menu.Item className="menu-item only-keyboard" onClick={props.onShortcuts} data-testid="more-shortcuts">
+              <Icon id="shortcuts" size={16} /> {t('shortcutsTitle')}
+              <kbd className="menu-kbd">{shortcutText('help')}</kbd>
             </Menu.Item>
             <Menu.LinkItem className="menu-item" href={GUIDE_URL} target="_blank" rel="noopener noreferrer" closeOnClick data-testid="more-help">
               <Icon id="help" size={16} /> {t('help')}

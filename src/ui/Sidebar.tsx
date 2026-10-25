@@ -459,6 +459,7 @@ export function Sidebar(props: Props) {
         className={`sidebar${props.hidden ? ' hidden' : ''}`}
         style={{ '--panel-w': `${props.width ?? PANEL_DEFAULT}px` } as CSSProperties}
         data-testid="sidebar"
+        data-key-scope="tree"
         aria-label={t('editorMenu')}
       >
         {props.onResize && !props.hidden && <PanelResizer width={props.width ?? PANEL_DEFAULT} onResize={props.onResize} />}
