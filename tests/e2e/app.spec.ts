@@ -1468,3 +1468,150 @@ test('family lines and captions stay readable on dark and light plain background
   await page.getByTestId('btn-theme').click();
   expect(await seriousA11yIssues(page), 'dark theme, cream preset').toEqual([]);
 });
+
+/** A JPEG/PNG made in the browser: `color` with a white top-left quarter. */
+async function makeImage(page: Page, w: number, h: number, color: string, type = 'image/jpeg') {
+  const b64 = await page.evaluate(
+    async ([w, h, color, type]) => {
+      const c = new OffscreenCanvas(w, h);
+      const x = c.getContext('2d')!;
+      x.fillStyle = color;
+      x.fillRect(0, 0, w, h);
+      x.fillStyle = '#ffffff';
+      x.fillRect(0, 0, w / 2, h / 2);
+      const bytes = new Uint8Array(await (await c.convertToBlob({ type, quality: 0.8 })).arrayBuffer());
+      let s = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      return btoa(s);
+    },
+    [w, h, color, type] as const,
+  );
+  return Buffer.from(b64, 'base64');
+}
+
+test('canvas background: six motifs with scale and colour, kept per tree and exported', async ({ page }) => {
+  await fresh(page);
+  const svg = page.locator('svg.tree-svg');
+  await page.getByTestId('btn-settings').click();
+  await page.getByTestId('bg-kind-tiles').click();
+  await expect(svg).toHaveAttribute('data-backdrop', 'tiles');
+  await expect(page.locator('rect.canvas-tiles')).toHaveCount(1);
+  for (const m of ['dots', 'diagonal', 'hex', 'kawung', 'parang', 'truntum']) {
+    await page.getByTestId(`bg-motif-${m}`).click();
+    await expect(page.getByTestId(`bg-motif-${m}`)).toHaveAttribute('aria-pressed', 'true');
+    await expect(svg.locator('#bg-tiles > *').first()).toBeAttached();
+  }
+  await page.getByTestId('bg-motif-kawung').click();
+  await page.getByTestId('bg-scale').fill('150');
+  await expect(svg.locator('#bg-tiles')).toHaveAttribute('patternTransform', 'scale(1.5)');
+  await expect(svg.locator('#bg-tiles ellipse').first()).toHaveAttribute('stroke', '#dcd7d2');
+  await page.getByTestId('bg-motif-color').fill('#b45309');
+  await expect(svg.locator('#bg-tiles ellipse').first()).toHaveAttribute('stroke', '#b45309');
+  await page.getByTestId('bg-motif-color-default').click();
+  await page.keyboard.press('Escape');
+  // Dark theme: the default motif colour has a dark variant.
+  await page.getByTestId('btn-theme').click();
+  await expect(svg.locator('#bg-tiles ellipse').first()).toHaveAttribute('stroke', '#2e2926');
+  await page.getByTestId('btn-theme').click();
+
+  // Kept after reload and in .sambung files.
+  await page.waitForTimeout(700);
+  await page.reload();
+  await expect(svg).toHaveAttribute('data-backdrop', 'tiles');
+  await expect(svg.locator('#bg-tiles')).toHaveAttribute('patternTransform', 'scale(1.5)');
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByTestId('btn-save').click()]);
+  const saved = fs.readFileSync((await dl.path())!);
+  await page.getByTestId('btn-reset').click();
+  await page.getByTestId('confirm-ok').click();
+  await expect(svg).toHaveAttribute('data-backdrop', 'grid');
+  await page.getByTestId('btn-open').click();
+  await page.getByTestId('open-file-input').setInputFiles({ name: 'motif.sambung', mimeType: 'application/zip', buffer: saved });
+  await page.getByTestId('open-close').click();
+  await expect(svg).toHaveAttribute('data-backdrop', 'tiles');
+
+  // SVG and PNG exports that follow the canvas carry the motif.
+  const out = fs.readFileSync(await exportImage(page, 'svg', 'canvas'), 'utf8');
+  expect(out).toContain('id="bg-tiles"');
+  expect(out).toContain('fill="url(#bg-tiles)"');
+  const png = fs.statSync(await exportImage(page, 'png', 'canvas')).size;
+  const plain = fs.statSync(await exportImage(page, 'png', 'white')).size;
+  expect(png).toBeGreaterThan(plain); // the motif adds detail all over the image
+});
+
+test('canvas background picture: shrunk to 2560 px, live settings, kept, exported and readable', async ({ page }) => {
+  await fresh(page);
+  const svg = page.locator('svg.tree-svg');
+  await page.getByTestId('btn-settings').click();
+  await page.getByTestId('bg-kind-image').click();
+  await expect(svg).toHaveAttribute('data-backdrop', 'grid'); // nothing changes until a picture is chosen
+  const big = await makeImage(page, 6000, 4000, '#1d3557');
+  await page.getByTestId('bg-image-input').setInputFiles({ name: 'kampung.jpg', mimeType: 'image/jpeg', buffer: big });
+  await expect(svg).toHaveAttribute('data-backdrop', 'image');
+  const picture = svg.locator('.canvas-image');
+  await expect(picture.locator('image')).toHaveAttribute('preserveAspectRatio', 'xMidYMid slice');
+  // Default veil 70 %, no blur, stays put (outside the zoom transform).
+  await expect(picture.locator('rect').last()).toHaveAttribute('opacity', '0.7');
+  await expect(svg.locator('> .canvas-image')).toHaveCount(1);
+  // Every setting shows at once.
+  await page.getByTestId('bg-fit-contain').click();
+  await expect(picture.locator('image')).toHaveAttribute('preserveAspectRatio', 'xMidYMid meet');
+  await page.getByTestId('bg-fit-tile').click();
+  await expect(picture.locator('rect[fill="url(#bg-image)"]')).toHaveCount(1);
+  await page.getByTestId('bg-fit-cover').click();
+  await page.getByTestId('bg-fade').fill('40');
+  await expect(picture.locator('rect').last()).toHaveAttribute('opacity', '0.4');
+  await page.getByTestId('bg-blur').fill('6');
+  await expect(svg.locator('#bg-blur feGaussianBlur')).toHaveAttribute('stdDeviation', '6');
+  await page.getByTestId('bg-motion-scroll').click();
+  await expect(svg.locator('> g[transform] .canvas-image')).toHaveCount(1);
+  await page.getByTestId('bg-motion-fixed').click();
+  await page.getByTestId('bg-fade').fill('70');
+  await page.getByTestId('bg-blur').fill('0');
+  await page.keyboard.press('Escape');
+
+  // The stored picture is at most 2560 px on its longest side; the SVG export inlines it.
+  const out = fs.readFileSync(await exportImage(page, 'svg', 'canvas'), 'utf8');
+  const start = out.indexOf('href="data:image/jpeg;base64,');
+  expect(start).toBeGreaterThan(0);
+  const href = out.slice(start + 6, out.indexOf('"', start + 6));
+  const size = await page.evaluate(async (src) => {
+    const img = new Image();
+    img.src = src;
+    await img.decode();
+    return [img.naturalWidth, img.naturalHeight];
+  }, href);
+  expect(size).toEqual([2560, 1707]);
+  // PNG export with the canvas background shows the picture through its veil, not the bare canvas colour.
+  const px = await imagePixel(page, await exportImage(page, 'png', 'canvas'), 'image/png', { x: 4, y: 300 });
+  expect(hex(px.slice(0, 3))).not.toBe('#fafaf9');
+
+  // Kept after reload and in .sambung files (picture included); readable over a dark and a bright picture.
+  await page.waitForTimeout(700);
+  await page.reload();
+  await expect(svg).toHaveAttribute('data-backdrop', 'image');
+  await expect(svg.locator('.canvas-image image')).toHaveAttribute('href', /^blob:/);
+  await stableBox(card(page, 'Me').locator('.card-bg'));
+  expect(await seriousA11yIssues(page), 'dark picture').toEqual([]);
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByTestId('btn-save').click()]);
+  const saved = fs.readFileSync((await dl.path())!);
+  await page.getByTestId('btn-reset').click();
+  await page.getByTestId('confirm-ok').click();
+  await page.getByTestId('btn-open').click();
+  await page.getByTestId('open-file-input').setInputFiles({ name: 'pic.sambung', mimeType: 'application/zip', buffer: saved });
+  await expect(page.getByTestId('open-report')).toContainText('Photos: 1');
+  await page.getByTestId('open-close').click();
+  await expect(svg).toHaveAttribute('data-backdrop', 'image');
+  await expect(svg.locator('.canvas-image image')).toHaveAttribute('href', /^blob:/);
+
+  await page.getByTestId('btn-settings').click();
+  const before = await svg.locator('.canvas-image image').getAttribute('href');
+  await page.getByTestId('bg-image-input').setInputFiles({ name: 'terang.png', mimeType: 'image/png', buffer: await makeImage(page, 800, 600, '#f2e8cf', 'image/png') });
+  await expect(svg.locator('.canvas-image image')).not.toHaveAttribute('href', before!);
+  await page.keyboard.press('Escape');
+  await stableBox(card(page, 'Me').locator('.card-bg'));
+  expect(await seriousA11yIssues(page), 'bright picture').toEqual([]);
+  // Undo returns to the previous picture.
+  await page.getByTestId('tree-canvas').focus();
+  await page.keyboard.press('Control+z');
+  await expect(svg.locator('.canvas-image image')).toHaveAttribute('href', before!);
+});

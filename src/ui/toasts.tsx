@@ -27,7 +27,14 @@ export function notify(text: string, opts: { kind?: 'info' | 'error'; action?: {
 function ToastList() {
   const { toasts } = Toast.useToastManager();
   return toasts.map((toast) => (
-    <Toast.Root key={toast.id} toast={toast} className={`toast${toast.type === 'error' ? ' error' : ''}`} data-testid="toast">
+    // The toast has no visible title: its message names it for screen readers (role="dialog" needs a name).
+    <Toast.Root
+      key={toast.id}
+      toast={toast}
+      className={`toast${toast.type === 'error' ? ' error' : ''}`}
+      aria-label={typeof toast.description === 'string' ? toast.description : undefined}
+      data-testid="toast"
+    >
       <Toast.Content className="toast-content">
         <Toast.Description className="toast-text" />
         {toast.actionProps && <Toast.Action className="toast-action" />}

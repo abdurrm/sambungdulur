@@ -22,13 +22,13 @@ import { SHEET_BAR_PX, type SheetSnap } from './ui/sheetSnap';
 import { useBackToClose } from './ui/backToClose';
 import { emptyHistory, record, redo as redoStep, undo as undoStep, type History } from './model/history';
 import { GenerationControl, LanguageSelect, loadBackgroundSettings, SettingsMenu } from './ui/SettingsMenu';
-import type { CanvasBackground } from './model/background';
+import { BACKGROUND_MAX_SIDE, BACKGROUND_QUALITY, FADE_DEFAULT, type CanvasBackground } from './model/background';
 import { SearchPanel } from './ui/SearchPanel';
 import type { OpenReport } from './ui/OpenDialog';
 import type { MenuAnchor } from './ui/PersonMenu';
 import type { PersonActionId } from './model/personActions';
 import { GUIDE_URL } from './links';
-import { initialLang, LANG_KEY, setLang as setI18nLang, t, type Lang } from './i18n';
+import { initialLang, LANG_KEY, loadLang, setLang as setI18nLang, t, type Lang } from './i18n';
 import { getViewport, useViewport } from './ui/viewport';
 import { commandFor, keyContext, shortcutText, type Command } from './ui/shortcuts';
 import { kinNeighbour } from './model/kinNav';
@@ -140,9 +140,11 @@ export default function App() {
     return l;
   });
   const changeLang = (l: Lang) => {
-    setI18nLang(l);
     localStorage.setItem(LANG_KEY, l);
-    setLangState(l);
+    void loadLang(l).then(() => {
+      setI18nLang(l);
+      setLangState(l);
+    });
   };
   const [doc, setDocState] = useState<TreeDoc | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -398,6 +400,25 @@ export default function App() {
   /** The canvas background is part of the tree's look: an undoable change that is saved with the file. */
   const setBackground = (background: CanvasBackground, coalesceKey?: string) =>
     setDoc((d) => ({ ...d, settings: { ...d.settings, background } }), true, coalesceKey);
+  /** A background picture: shrunk to 2560 px, stored as JPEG in the media store, applied as one undo step. */
+  const setBackgroundImage = async (file: File) => {
+    if (file.size > MAX_IMAGE_BYTES) throw new Error(t('fileTooLargeMsg'));
+    const { shrinkImage } = await import('./io/shrinkImage');
+    const img = await shrinkImage(file, BACKGROUND_MAX_SIDE, BACKGROUND_QUALITY);
+    const cur = docRef.current!;
+    let n = 1;
+    while (cur.media[`B${n}`]) n++;
+    const id = `B${n}`;
+    await store.putMedia(id, img.blob);
+    setMediaUrls((prev) => new Map(prev).set(id, URL.createObjectURL(img.blob)));
+    const prev = cur.settings.background;
+    const keep = prev.kind === 'image' ? { fit: prev.fit, fade: prev.fade, blur: prev.blur, fixed: prev.fixed } : { fit: 'cover' as const, fade: FADE_DEFAULT, blur: 0, fixed: true };
+    setDoc((d) => ({
+      ...d,
+      media: { ...d.media, [id]: { id, fileName: `background-${n}.jpg`, mime: 'image/jpeg', sourcePath: '', available: true, background: true } },
+      settings: { ...d.settings, background: { kind: 'image', mediaId: id, width: img.width, height: img.height, average: img.average, ...keep } },
+    }));
+  };
   const focusOn = (id: string) => {
     setDoc((d) => ({ ...d, focusId: id }), false);
     setSelectedId(id);
@@ -888,7 +909,7 @@ export default function App() {
               </button>
             }
           >
-            <SettingsMenu settings={doc.settings} onChange={patchSettings} onClose={() => setPopover(null)} lang={lang} onLang={changeLang} onBackground={setBackground} />
+            <SettingsMenu settings={doc.settings} onChange={patchSettings} onClose={() => setPopover(null)} lang={lang} onLang={changeLang} onBackground={setBackground} onBackgroundImage={setBackgroundImage} />
           </ToolPopover>
           </Suspense>
           {wide ? (

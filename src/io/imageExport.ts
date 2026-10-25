@@ -54,7 +54,15 @@ export async function buildExportSvg(
     }
   }
   const theme = doc.settings.theme;
-  const backdrop: Backdrop = opts.background === 'white' ? { kind: 'solid', color: '#ffffff', grid: false } : resolveBackdrop(doc.settings.background, theme);
+  // The background picture is inlined as a data URL so the exported file stands on its own.
+  const bg = doc.settings.background;
+  let bgUrl: string | undefined;
+  if (opts.background === 'canvas' && bg?.kind === 'image') {
+    const blob = await getMediaBlob(bg.mediaId);
+    if (blob) bgUrl = await blobToDataUrl(blob);
+  }
+  const backdrop: Backdrop = opts.background === 'white' ? { kind: 'solid', color: '#ffffff', grid: false } : resolveBackdrop(bg, theme, () => bgUrl);
+  const motif = backdrop.tiles ? (await import('../render/motifs')).motifTile(backdrop.tiles.pattern, backdrop.tiles.color) : undefined;
   const palette = paletteOn(theme, backdrop);
   const markup = renderToStaticMarkup(
     createElement(TreeSvg, {
@@ -65,6 +73,7 @@ export async function buildExportSvg(
       mediaUrl: (id: string) => urls.get(id),
       background: opts.background !== 'transparent',
       backdrop,
+      motif,
       legend: opts.legend,
       padding: 48,
       title: doc.title,

@@ -7,7 +7,7 @@ import type { TreeLayout } from '../layout/layout';
 import type { VisibleGraph } from '../layout/visible';
 import { TreeSvg } from '../render/TreeSvg';
 import { paletteOn } from '../render/palette';
-import { inkFor, resolveBackdrop } from '../model/background';
+import { inkColor, inkFor, resolveBackdrop } from '../model/background';
 import { displayName } from '../model/relations';
 import { personLabel } from '../model/a11y';
 import { t as tx } from '../i18n';
@@ -306,7 +306,14 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
     props.onSelect(person ? person.getAttribute('data-person-id') : null);
   };
 
-  const backdrop = resolveBackdrop(props.doc.settings.background, props.doc.settings.theme);
+  const backdrop = resolveBackdrop(props.doc.settings.background, props.doc.settings.theme, props.mediaUrl);
+  // Motif tiles load on demand, the first time a motif background is shown.
+  const [motifs, setMotifs] = useState<typeof import('../render/motifs') | null>(null);
+  const wantMotifs = !!backdrop.tiles;
+  useEffect(() => {
+    if (wantMotifs && !motifs) void import('../render/motifs').then((m) => setMotifs(m));
+  }, [wantMotifs, motifs]);
+  const motif = backdrop.tiles && motifs ? motifs.motifTile(backdrop.tiles.pattern, backdrop.tiles.color) : undefined;
   const palette = paletteOn(props.doc.settings.theme, backdrop);
   const selectedNode = props.selectedId ? props.layout.nodes.get(props.selectedId) : undefined;
   const doc = props.doc;
@@ -317,7 +324,7 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
       className="canvas-wrap"
       data-testid="tree-canvas"
       data-key-scope="tree"
-      data-ink={inkFor(backdrop.color)}
+      data-ink={inkFor(inkColor(backdrop))}
       tabIndex={0}
       role="group"
       aria-label={tx('canvasLabel')}
@@ -347,6 +354,7 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
         layout={props.layout}
         palette={palette}
         backdrop={backdrop}
+        motif={motif}
         density="normal"
         mediaUrl={props.mediaUrl}
         selectedId={props.selectedId}

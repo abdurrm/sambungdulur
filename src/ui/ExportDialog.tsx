@@ -92,7 +92,7 @@ export function ExportDialog(props: {
           const files: Record<string, Uint8Array> = { [`${base}.ged`]: strToU8(text) };
           let n = 0;
           for (const [id, m] of Object.entries(doc.media)) {
-            if (!m.available) continue;
+            if (!m.available || m.background) continue;
             const blob = await props.getMediaBlob(id);
             if (!blob) continue;
             files[mediaPath(id)] = new Uint8Array(await blob.arrayBuffer());

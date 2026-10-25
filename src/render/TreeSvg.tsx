@@ -5,6 +5,7 @@ import { cardStyle, type Density } from '../layout/metrics';
 import { displayName } from '../model/relations';
 import { FONT_MONO, FONT_SANS, type Palette } from './palette';
 import type { Backdrop } from '../model/background';
+import type { MotifTile } from './motifs';
 import { t } from '../i18n';
 
 export interface TreeSvgProps {
@@ -29,6 +30,8 @@ export interface TreeSvgProps {
   background?: boolean;
   /** What the background looks like; defaults to the theme grid. */
   backdrop?: Backdrop;
+  /** The motif tile for a `tiles` backdrop (render/motifs.tsx, loaded on demand by the caller). */
+  motif?: MotifTile;
   padding?: number;
   legend?: boolean;
   /** Radius (layout units) of the invisible press area around card buttons; set on touch screens. */
@@ -295,6 +298,24 @@ export function TreeSvg(props: TreeSvgProps) {
   );
   const legendY = layout.minY + layout.height + pad + 4;
   const backdrop: Backdrop = props.backdrop ?? { kind: 'grid', color: pal.bg, grid: true };
+  const img = backdrop.image;
+  type Len = number | string;
+  const tiles = (x: Len, y: Len, width: Len, height: Len) =>
+    backdrop.tiles && props.motif ? <rect className="canvas-tiles" x={x} y={y} width={width} height={height} fill="url(#bg-tiles)" pointerEvents="none" /> : null;
+  /** The picture with its blur and its theme-coloured veil, filling the given area. */
+  const picture = (x: Len, y: Len, width: Len, height: Len) =>
+    img?.url ? (
+      <g className="canvas-image" pointerEvents="none">
+        <g filter={img.blur > 0 ? 'url(#bg-blur)' : undefined}>
+          {img.fit === 'tile' ? (
+            <rect x={x} y={y} width={width} height={height} fill="url(#bg-image)" />
+          ) : (
+            <image href={img.url} x={x} y={y} width={width} height={height} preserveAspectRatio={img.fit === 'cover' ? 'xMidYMid slice' : 'xMidYMid meet'} />
+          )}
+        </g>
+        <rect x={x} y={y} width={width} height={height} fill={backdrop.color} opacity={img.fade / 100} />
+      </g>
+    ) : null;
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -322,6 +343,21 @@ export function TreeSvg(props: TreeSvgProps) {
               <circle cx={n.x} cy={n.y + st.pad + st.photo / 2} r={st.photo / 2 - 1} />
             </clipPath>
           ))}
+        {backdrop.tiles && props.motif && (
+          <pattern id="bg-tiles" width={props.motif.width} height={props.motif.height} patternUnits="userSpaceOnUse" patternTransform={`scale(${backdrop.tiles.scale / 100})`}>
+            {props.motif.node}
+          </pattern>
+        )}
+        {img?.url && img.blur > 0 && (
+          <filter id="bg-blur" x="-5%" y="-5%" width="110%" height="110%">
+            <feGaussianBlur stdDeviation={img.blur} />
+          </filter>
+        )}
+        {img?.url && img.fit === 'tile' && (
+          <pattern id="bg-image" width={img.width} height={img.height} patternUnits="userSpaceOnUse">
+            <image href={img.url} width={img.width} height={img.height} />
+          </pattern>
+        )}
         {props.trace && (
           <style>{`.trace{animation:sd-trace 1.1s linear infinite}@keyframes sd-trace{to{stroke-dashoffset:-28}}@media (prefers-reduced-motion: reduce){.trace{animation:none}}`}</style>
         )}
@@ -333,11 +369,16 @@ export function TreeSvg(props: TreeSvgProps) {
           <>
             <rect className="canvas-bg" x={vbX} y={vbY} width={w} height={h} fill={backdrop.color} />
             {backdrop.grid && <rect x={vbX} y={vbY} width={w} height={h} fill="url(#grid-major)" />}
+            {tiles(vbX, vbY, w, h)}
+            {picture(vbX, vbY, w, h)}
           </>
         ))}
+      {props.background !== false && props.transform && img?.fixed && picture(0, 0, '100%', '100%')}
       {props.transform ? (
         <g transform={props.transform}>
           {props.background !== false && backdrop.grid && <rect x="-100000" y="-100000" width="200000" height="200000" fill="url(#grid-major)" pointerEvents="none" />}
+          {props.background !== false && tiles(-100000, -100000, 200000, 200000)}
+          {props.background !== false && img && !img.fixed && picture(vbX, vbY, w, h)}
           {body}
         </g>
       ) : (

@@ -65,6 +65,8 @@ export interface MediaItem {
   sourcePath: string;
   /** True when bytes are available in the media store. */
   available: boolean;
+  /** The canvas background picture (not a person's photo): left out of GEDCOM exports. */
+  background?: true;
 }
 
 /** Manual layout adjustments, relative to the automatic layout so they survive re-layout. */

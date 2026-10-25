@@ -1,6 +1,7 @@
 import type { Gender, Theme } from '../model/types';
 import { TOKENS } from '../theme/tokens';
-import { inkFor, type Backdrop } from '../model/background';
+import { contrast } from '../theme/color';
+import { inkColor, inkFor, type Backdrop } from '../model/background';
 
 /**
  * Canvas palette: warm stone canvas with a fine grid, crisp cards, monospace metadata, and the Nila
@@ -69,8 +70,24 @@ export const PALETTES: Record<Theme, Palette> = { light: paletteFor('light'), da
  */
 export function paletteOn(theme: Theme, backdrop: Backdrop): Palette {
   const base = PALETTES[theme];
-  const ink = PALETTES[inkFor(backdrop.color) === 'dark' ? 'light' : 'dark'];
-  return { ...base, bg: backdrop.color, edge: ink.edge, edgeFar: ink.edgeFar, emphasis: ink.emphasis, emphasisGlow: ink.emphasisGlow, shadow: ink.shadow, caption: ink.caption };
+  const against = inkColor(backdrop);
+  const dark = inkFor(against) === 'dark';
+  const ink = PALETTES[dark ? 'light' : 'dark'];
+  // Mid-tone backgrounds (a picture seen through its veil, a grey colour): step to a stronger shade of
+  // the same ink until lines reach 3:1 and captions 4.5:1.
+  const first = (min: number, shades: string[]) => shades.find((c) => contrast(c, against) >= min) ?? shades[shades.length - 1];
+  const L = TOKENS.light, D = TOKENS.dark;
+  const edge = first(3, dark ? [L.edge, L.muted, L.text] : [D.edge, D.dim, D.text]);
+  return {
+    ...base,
+    bg: backdrop.color,
+    edge,
+    edgeFar: edge,
+    emphasis: first(3, dark ? [L.primary, L.primaryStrong, '#1e1b4b'] : [D.primary, '#c7d2fe', '#e0e7ff']),
+    emphasisGlow: ink.emphasisGlow,
+    shadow: ink.shadow,
+    caption: first(4.5, dark ? [L.muted, L.text] : [D.muted, D.text]),
+  };
 }
 
 export const FONT_SANS = "Inter, 'Segoe UI', system-ui, -apple-system, Roboto, 'Noto Sans', 'Helvetica Neue', Arial, sans-serif";
