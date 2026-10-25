@@ -30,6 +30,8 @@ import type { PersonActionId } from './model/personActions';
 import { GUIDE_URL } from './links';
 import { initialLang, LANG_KEY, setLang as setI18nLang, t, type Lang } from './i18n';
 import { getViewport, useViewport } from './ui/viewport';
+import { commandFor, keyContext, type Command } from './ui/shortcuts';
+import { kinNeighbour } from './model/kinNav';
 
 // Loaded on demand (and precached by the service worker for offline use): not needed for the first view.
 const loadDialogs = () => import('./ui/dialogs');
@@ -41,6 +43,7 @@ const AddChildDialog = lazy(() => loadDialogs().then((m) => ({ default: m.AddChi
 const ConfirmDialog = lazy(() => loadDialogs().then((m) => ({ default: m.ConfirmDialog })));
 const ManualLayoutInfo = lazy(() => loadDialogs().then((m) => ({ default: m.ManualLayoutInfo })));
 const MessageDialog = lazy(() => loadDialogs().then((m) => ({ default: m.MessageDialog })));
+const ShortcutsDialog = lazy(() => loadDialogs().then((m) => ({ default: m.ShortcutsDialog })));
 /** Warm the on-demand chunks once the first view is up, so the first click never waits. */
 function preloadLazyUi() {
   const run = () => {
@@ -70,7 +73,8 @@ type Dialog =
   | { kind: 'manualInfo' }
   | { kind: 'crop'; file: File; personId: string }
   | { kind: 'export' }
-  | { kind: 'open' };
+  | { kind: 'open' }
+  | { kind: 'shortcuts' };
 
 const MANUAL_INFO_KEY = 'sambungdulur.manualInfoSeen';
 const PANEL_KEY = 'sambungdulur.panel';
@@ -583,6 +587,71 @@ export default function App() {
     setToast({ text: t('toastManualSaved') });
   };
 
+  // ---- Keyboard commands (see ui/shortcuts.ts) ------------------------------------------
+  const selectAndShow = (id: string) => {
+    setSelectedId(id);
+    requestAnimationFrame(() => canvas.current?.ensureVisible(id));
+  };
+  const onCommand = (cmd: Command): boolean => {
+    const overlay = !!dialog || !!cardMenu;
+    switch (cmd) {
+      case 'escape':
+        // An open dialog or menu owns Escape (Base UI closes it); don't also close popovers behind it.
+        if (overlay) return false;
+        if (viewport.layout === 'medium' && drawerOpen && !popover) setDrawerOpen(false);
+        setPopover(null);
+        setMatches(new Set());
+        return false;
+      case 'save':
+        void saveFile();
+        return true;
+      case 'search':
+        if (overlay) return false;
+        setPopover('search');
+        return true;
+      case 'help':
+        if (overlay) return false;
+        setPopover(null);
+        setDialog({ kind: 'shortcuts' });
+        return true;
+    }
+    if (overlay || popover) return false;
+    switch (cmd) {
+      case 'zoomIn':
+        canvas.current?.zoomBy(1.15);
+        return true;
+      case 'zoomOut':
+        canvas.current?.zoomBy(0.85);
+        return true;
+      case 'center':
+        canvas.current?.fit();
+        return true;
+      case 'navUp':
+      case 'navDown':
+      case 'navLeft':
+      case 'navRight': {
+        if (!selectedId || !layout.nodes.has(selectedId)) {
+          selectAndShow(layout.nodes.has(focusId) ? focusId : [...layout.nodes.keys()][0]);
+          return true;
+        }
+        const dir = cmd === 'navUp' ? 'up' : cmd === 'navDown' ? 'down' : cmd === 'navLeft' ? 'left' : 'right';
+        const next = kinNeighbour(doc, layout.nodes, selectedId, dir);
+        if (next) selectAndShow(next);
+        return true;
+      }
+      case 'edit':
+        if (!selectedId || manualMode) return false;
+        doAction('edit', selectedId);
+        return true;
+      case 'delete':
+        if (!selectedId || manualMode) return false;
+        doAction('delete', selectedId);
+        return true;
+      default:
+        return false;
+    }
+  };
+
   const statusText = `${dirty ? t('unsaved') : t('saved')} · ${t('people', { n: doc.order.length })}`;
   const missingMedia = Object.values(doc.media).filter((m) => !m.available).length;
   const comps = doc.order.length > 1 && visible.hiddenCount > 0 ? components(doc).length : 1;
@@ -946,6 +1015,7 @@ export default function App() {
           }}
         />
       )}
+      {dialog?.kind === 'shortcuts' && <ShortcutsDialog onClose={() => setDialog(null)} />}
       {dialog?.kind === 'message' && <MessageDialog title={dialog.title} message={dialog.text} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'crop' && (
         <CropDialog file={dialog.file} onCancel={() => setDialog(null)} onDone={(blob) => applyCroppedImage(dialog.personId, blob)} />
@@ -970,33 +1040,19 @@ export default function App() {
       )}
       </Suspense>
       {toast && <Toast text={toast.text} kind={toast.kind} onDone={() => setToast(null)} />}
-      <KeyboardShortcuts
-        onSearch={() => setPopover('search')}
-        onSave={saveFile}
-        onEscape={() => {
-          // An open dialog owns Escape (Base UI closes it); don't also close popovers behind it.
-          if (dialog) return;
-          if (viewport.layout === 'medium' && drawerOpen && !popover) setDrawerOpen(false);
-          setPopover(null);
-          setMatches(new Set());
-        }}
-      />
+      <KeyboardShortcuts onCommand={onCommand} />
     </div>
   );
 }
 
-function KeyboardShortcuts(props: { onSearch: () => void; onSave: () => void; onEscape: () => void }) {
+function KeyboardShortcuts(props: { onCommand: (cmd: Command) => boolean }) {
   const ref = useRef(props);
   ref.current = props;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
-        e.preventDefault();
-        ref.current.onSearch();
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-        e.preventDefault();
-        ref.current.onSave();
-      } else if (e.key === 'Escape') ref.current.onEscape();
+      if (e.defaultPrevented || e.isComposing) return;
+      const cmd = commandFor(e, keyContext(e.target));
+      if (cmd && ref.current.onCommand(cmd)) e.preventDefault();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

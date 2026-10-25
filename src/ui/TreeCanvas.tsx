@@ -208,6 +208,26 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
   // Long-press on a card (touch / pen) opens its action menu; any real movement means a pan instead.
   const press = useRef<{ timer: number; x: number; y: number } | null>(null);
   const longPressAt = useRef(0);
+  // Touch double-tap zooms in at that point (desktop double-click edits the card instead).
+  const lastTap = useRef<{ t: number; x: number; y: number } | null>(null);
+  const lastPointer = useRef<string>('mouse');
+  const onTapEnd = (e: React.PointerEvent) => {
+    if (e.pointerType !== 'touch' || props.manualMode) return;
+    if (downAt.current && Math.hypot(e.clientX - downAt.current.x, e.clientY - downAt.current.y) > 8) return;
+    if ((e.target as Element).closest('.card-btn,.card-more')) return;
+    const now = Date.now();
+    const prev = lastTap.current;
+    if (prev && now - prev.t < 320 && Math.hypot(e.clientX - prev.x, e.clientY - prev.y) < 30) {
+      lastTap.current = null;
+      const el = wrapRef.current!;
+      const r = el.getBoundingClientRect();
+      const k = Math.min(ZOOM_MAX, tRef.current.k * 1.6) / tRef.current.k;
+      const sel = select(el).interrupt();
+      const point: [number, number] = [e.clientX - r.left, e.clientY - r.top];
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) sel.call(zoomRef.current!.scaleBy, k, point);
+      else sel.transition().duration(250).call(zoomRef.current!.scaleBy, k, point);
+    } else lastTap.current = { t: now, x: e.clientX, y: e.clientY };
+  };
   const cancelPress = () => {
     if (press.current) clearTimeout(press.current.timer);
     press.current = null;
@@ -257,8 +277,12 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
       ref={wrapRef}
       className="canvas-wrap"
       data-testid="tree-canvas"
+      tabIndex={0}
+      role="group"
+      aria-label={tx('canvasLabel')}
       onPointerDownCapture={(e) => {
         downAt.current = { x: e.clientX, y: e.clientY };
+        lastPointer.current = e.pointerType;
         onLongPressStart(e);
         onPointerDown(e);
       }}
@@ -266,13 +290,13 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
         if (press.current && Math.hypot(e.clientX - press.current.x, e.clientY - press.current.y) > 8) cancelPress();
         onPointerMove(e);
       }}
-      onPointerUp={(e) => (cancelPress(), onPointerUp(e))}
+      onPointerUp={(e) => (cancelPress(), onTapEnd(e), onPointerUp(e))}
       onPointerCancel={(e) => (cancelPress(), onPointerUp(e))}
       onClick={onClick}
       onContextMenu={onContextMenu}
       onDoubleClick={(e) => {
         const target = e.target as Element;
-        if (props.manualMode || target.closest('.card-btn,.card-more')) return;
+        if (props.manualMode || lastPointer.current === 'touch' || target.closest('.card-btn,.card-more')) return;
         const id = personAt(target);
         if (id) props.onEditRequest?.(id);
       }}

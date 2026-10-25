@@ -3,6 +3,7 @@ import { Dialog } from '@base-ui/react/dialog';
 import type { TreeDoc } from '../model/types';
 import { addChildOptions, displayName, type AddChildMode } from '../model/relations';
 import { t } from '../i18n';
+import { SHORTCUTS, showKeys } from './shortcuts';
 
 /**
  * Every dialog goes through this wrapper so focus trapping, Escape, outside presses and focus return
@@ -112,3 +113,33 @@ export function ManualLayoutInfo(props: { onContinue: () => void; onCancel: () =
   );
 }
 
+
+/** "?" help: every shortcut from the registry, in the current language. */
+export function ShortcutsDialog(props: { onClose: () => void }) {
+  const rows = SHORTCUTS.filter((s) => s.keys.length);
+  return (
+    <Modal title={t('shortcutsTitle')} onClose={props.onClose} testId="shortcuts-dialog">
+      <table className="details shortcuts">
+        <tbody>
+          {rows.map((s) => (
+            <tr key={s.command}>
+              <th>
+                {s.keys.map((k, i) => (
+                  <span key={i}>
+                    {i > 0 && ' / '}
+                    <kbd>{showKeys(k)}</kbd>
+                  </span>
+                ))}
+              </th>
+              <td>{t(s.label)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="note">{t('shortcutsNote')}</p>
+      <div className="actions">
+        <button className="btn primary" onClick={props.onClose} data-testid="shortcuts-ok">{t('ok')}</button>
+      </div>
+    </Modal>
+  );
+}

@@ -758,3 +758,70 @@ test('generation control is one tap away on phones @mobile', async ({ page }) =>
   await page.getByTestId('gen-popover').getByTestId('gen-down-minus').tap(); // All -> 10
   await expect(page.getByTestId('gen-chip')).toContainText('10');
 });
+
+const zoomPctOf = async (page: Page) => parseInt((await page.getByTestId('view-info').textContent())!.match(/(\d+)%/)![1]);
+
+test('keyboard: arrows move between relatives, Enter edits, Delete asks, ? lists shortcuts', async ({ page }) => {
+  await fresh(page);
+  await expect(page.getByTestId('selected-name')).toHaveText('Me');
+  await page.getByTestId('tree-canvas').focus();
+  await page.keyboard.press('ArrowUp');
+  await expect(page.getByTestId('selected-name')).toHaveText('My Father');
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByTestId('selected-name')).toHaveText('My Mother');
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.getByTestId('selected-name')).toHaveText('My Father');
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByTestId('selected-name')).toHaveText('Me');
+
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('edit-form')).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel' }).click();
+
+  await page.getByTestId('tree-canvas').focus();
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('Delete');
+  await expect(page.locator('[data-testid="confirm-dialog"], [data-testid="message-dialog"]')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(persons(page)).toHaveCount(3);
+
+  // Zoom keys.
+  await page.getByTestId('tree-canvas').focus();
+  const z0 = await zoomPctOf(page);
+  await page.keyboard.press('+');
+  await expect.poll(() => zoomPctOf(page)).toBeGreaterThan(z0);
+  await page.keyboard.press('-');
+  await page.keyboard.press('-');
+  await expect.poll(() => zoomPctOf(page)).toBeLessThan(z0);
+
+  // Typing in a field never triggers shortcuts.
+  await page.getByTestId('tree-title').focus();
+  const zt = await zoomPctOf(page);
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('+');
+  await expect(page.getByTestId('selected-name')).toHaveText('My Father');
+  expect(await zoomPctOf(page)).toBe(zt);
+  await page.keyboard.press('Escape');
+
+  // "?" lists the shortcuts in the current language.
+  await page.getByTestId('tree-canvas').focus();
+  await page.keyboard.press('?');
+  const help = page.getByTestId('shortcuts-dialog');
+  await expect(help).toContainText('Select a parent');
+  await expect(help).toContainText('F');
+  await page.keyboard.press('Escape');
+  await setLangViaSettings(page, 'id');
+  await page.getByTestId('tree-canvas').focus();
+  await page.keyboard.press('?');
+  await expect(help).toContainText('Pilih orang tua');
+});
+
+test('double-tap zooms in at that point on phones @mobile', async ({ page }) => {
+  await fresh(page);
+  await stableBox(card(page, 'Me').locator('.card-bg'));
+  const z0 = await zoomPctOf(page);
+  const c = (await page.getByTestId('tree-canvas').boundingBox())!;
+  await page.touchscreen.tap(c.x + 40, c.y + 120);
+  await page.touchscreen.tap(c.x + 40, c.y + 120);
+  await expect.poll(() => zoomPctOf(page)).toBeGreaterThan(z0 + 20);
+});
