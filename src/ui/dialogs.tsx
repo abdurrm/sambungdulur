@@ -1,24 +1,26 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Dialog } from '@base-ui/react/dialog';
 import type { TreeDoc } from '../model/types';
 import { addChildOptions, displayName, type AddChildMode } from '../model/relations';
 import { t } from '../i18n';
 
+/**
+ * Every dialog goes through this wrapper so focus trapping, Escape, outside presses and focus return
+ * are handled in one place (Base UI Dialog). Dialogs are mounted only while open; closing calls `onClose`.
+ */
 export function Modal(props: { title: string; children: ReactNode; onClose: () => void; wide?: boolean; testId?: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && props.onClose();
-    window.addEventListener('keydown', onKey);
-    ref.current?.querySelector<HTMLElement>('input,button,select,textarea')?.focus();
-    return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
   return (
-    <div className="backdrop" onMouseDown={(e) => e.target === e.currentTarget && props.onClose()}>
-      <div ref={ref} className={`modal${props.wide ? ' wide' : ''}`} role="dialog" aria-modal="true" aria-label={props.title} data-testid={props.testId}>
-        <h3>{props.title}</h3>
-        {props.children}
-      </div>
-    </div>
+    <Dialog.Root open onOpenChange={(open) => !open && props.onClose()}>
+      <Dialog.Portal>
+        <Dialog.Backdrop className="backdrop" />
+        <Dialog.Popup className={`modal${props.wide ? ' wide' : ''}`} aria-label={props.title} data-testid={props.testId}>
+          <Dialog.Title render={<h3 />}>{props.title}</Dialog.Title>
+          {props.children}
+          {/* Lets touch screen-reader users leave the dialog; placed last so it never takes initial focus. */}
+          <Dialog.Close className="sr-only">{t('close')}</Dialog.Close>
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 

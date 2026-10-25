@@ -13,6 +13,7 @@
     "docs": "node scripts/make-docs.mjs"
   },
   "dependencies": {
+    "@base-ui/react": "^1.9.0",
     "d3-selection": "^3.0.0",
     "d3-transition": "^3.0.1",
     "d3-zoom": "^3.0.0",

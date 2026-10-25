@@ -788,6 +788,8 @@ export default function App() {
         onSearch={() => setPopover('search')}
         onSave={saveFile}
         onEscape={() => {
+          // An open dialog owns Escape (Base UI closes it); don't also close popovers behind it.
+          if (dialog) return;
           setPopover(null);
           setMatches(new Set());
         }}

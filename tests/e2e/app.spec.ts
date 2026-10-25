@@ -360,3 +360,29 @@ test('header toolbar never overflows at common widths and in every language', as
     }
   }
 });
+
+test('dialogs trap focus, close with Escape and return focus to their trigger', async ({ page }) => {
+  await fresh(page);
+  const trigger = page.getByTestId('btn-export');
+  await trigger.click();
+  const dialog = page.getByTestId('export-dialog');
+  await expect(dialog).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Export your family tree' })).toBeVisible();
+  for (let i = 0; i < 25; i++) {
+    await page.keyboard.press(i % 5 === 4 ? 'Shift+Tab' : 'Tab');
+    expect(await dialog.evaluate((d) => d.contains(document.activeElement)), 'focus stays in dialog after Tab #' + i).toBe(true);
+  }
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(trigger).toBeFocused();
+
+  // Escape closes only the dialog on top, not the search popover underneath it.
+  await page.getByTestId('btn-search').click();
+  await expect(page.getByTestId('search-panel')).toBeVisible();
+  await page.getByTestId('sidebar').getByTestId('add-child').click();
+  await expect(page.getByTestId('add-child-dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('add-child-dialog')).toBeHidden();
+  await expect(page.getByTestId('search-panel')).toBeVisible();
+  await expect(page.getByTestId('add-child')).toBeFocused();
+});

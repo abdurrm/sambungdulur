@@ -202,15 +202,16 @@ hr.sep { border: 0; border-top: 1px solid var(--panel-border); margin: 2px 0; wi
 
 /* ---- Overlays ---- */
 .backdrop {
-  position: fixed; inset: 0; background: rgba(2, 6, 23, 0.45); display: grid; place-items: center; z-index: 100; padding: 16px;
+  position: fixed; inset: 0; background: rgba(2, 6, 23, 0.45); z-index: 100;
   backdrop-filter: blur(3px);
 }
 .modal {
-  width: min(560px, 100%); max-height: calc(100dvh - 32px); overflow: auto; background: var(--panel-solid);
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 101;
+  width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; background: var(--panel-solid);
   border: 1px solid var(--panel-border); border-radius: 16px; box-shadow: var(--shadow); padding: 20px;
-  display: flex; flex-direction: column; gap: 14px;
+  display: flex; flex-direction: column; gap: 14px; outline: none;
 }
-.modal.wide { width: min(760px, 100%); }
+.modal.wide { width: min(760px, calc(100vw - 32px)); }
 .modal h3 { margin: 0; font-size: 18px; }
 .modal .actions { display: flex; gap: 8px; justify-content: flex-end; }
 .modal .actions .btn { width: auto; min-width: 96px; }
