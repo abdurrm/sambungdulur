@@ -322,10 +322,12 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
         hitRadius={props.coarsePointer ? hitRadiusFor(t.k) : undefined}
         describe={describe}
       />
-      {selectedNode && props.onCardMenu && !props.manualMode && (
+      {/* Hidden on cards too small to share space with it; right-click / long-press still work there. */}
+      {selectedNode && props.onCardMenu && !props.manualMode && selectedNode.w * t.k >= 110 && (
         <button
           className="card-more"
-          style={{ left: t.applyX(selectedNode.x - selectedNode.w / 2) + 6, top: t.applyY(selectedNode.y) + 6 }}
+          // Centred near the card's empty top-left corner so it covers as little of the card as possible.
+          style={{ left: t.applyX(selectedNode.x - selectedNode.w / 2) + 12, top: t.applyY(selectedNode.y) + 12 }}
           aria-label={tx('cardActions', { name: displayName(props.doc.persons[selectedNode.id], props.doc.settings) })}
           aria-haspopup="menu"
           data-tip={tx('cardActions', { name: displayName(props.doc.persons[selectedNode.id], props.doc.settings) })}

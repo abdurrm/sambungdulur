@@ -22,6 +22,7 @@ async function newPage(opts = {}) {
   await page.goto(BASE);
   await page.evaluate(async () => {
     localStorage.clear();
+    localStorage.setItem('sambungdulur.onboarded', '1'); // first-visit tips would cover the canvas
     await new Promise((r) => {
       const q = indexedDB.deleteDatabase('sambungdulur');
       q.onsuccess = q.onerror = q.onblocked = () => r();
@@ -71,7 +72,8 @@ async function shot(page, name, marks = [], opts = {}) {
 const card = (page, name) => page.locator('g.person', { hasText: name }).first();
 const tid = (page, id) => page.getByTestId(id);
 async function pickCard(page, name) {
-  await card(page, name).locator('.card-bg').click({ position: { x: 24, y: 24 } });
+  // Top edge, away from the ⋯ button (top-left) and the branch toggle (top-right) of a selected card.
+  await card(page, name).locator('.card-bg').click({ position: { x: 70, y: 12 }, force: true });
   await page.waitForTimeout(250);
 }
 async function importDemo(page) {
@@ -359,7 +361,33 @@ async function makeAvatar(page, file) {
 }
 
 // ---------------------------------------------------------------------------
-// Part C: mobile
+// Part C: card action menu and keyboard shortcuts (desktop)
+// ---------------------------------------------------------------------------
+{
+  const { ctx, page } = await newPage();
+  await importDemo(page);
+  await tid(page, 'open-close').click();
+  await page.waitForTimeout(900);
+  await pickCard(page, 'Dimas');
+  await card(page, 'Dimas').locator('.card-bg').click({ button: 'right', force: true });
+  await tid(page, 'person-menu').waitFor();
+  await page.waitForTimeout(250);
+  await shot(page, '29-menu-kartu', [
+    { loc: tid(page, 'card-more'), n: 1, pos: 'tl' },
+    { loc: tid(page, 'pm-addChild'), n: 2 },
+    { loc: tid(page, 'pm-delete'), n: 3 },
+  ]);
+  await page.keyboard.press('Escape');
+  await tid(page, 'tree-canvas').focus();
+  await page.keyboard.press('?');
+  await tid(page, 'shortcuts-dialog').waitFor();
+  await page.waitForTimeout(250);
+  await shot(page, '30-pintasan', [{ loc: tid(page, 'shortcuts-dialog'), n: 1 }]);
+  await ctx.close();
+}
+
+// ---------------------------------------------------------------------------
+// Part D: mobile
 // ---------------------------------------------------------------------------
 {
   const { ctx, page } = await newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
@@ -370,38 +398,60 @@ async function makeAvatar(page, file) {
   await page.waitForTimeout(900);
   const tapCard = async (name) => {
     await card(page, name).locator('.card-bg').tap({ force: true }); // small scale: text overlays the hit point
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(600);
   };
   // Re-root on Dimas, then limit to 1 generation each way so the cards are readable on a phone.
   await tapCard('Dimas');
   await tid(page, 'focus-person').tap();
-  await page.locator('.sidebar-grip').tap();
-  await tid(page, 'btn-more').tap();
-  const more = tid(page, 'more-menu');
-  for (let i = 0; i < 11; i++) await more.getByTestId('gen-up-minus').tap();
-  await more.getByTestId('gen-up-plus').tap();
-  for (let i = 0; i < 11; i++) await more.getByTestId('gen-down-minus').tap();
-  await more.getByTestId('gen-down-plus').tap();
-  await shot(page, '26-mobile-menu', [
-    { loc: more.getByTestId('gen-control'), n: 1 },
-    { loc: more.getByTestId('lang-select'), n: 2 },
-    { loc: more.getByRole('button', { name: 'Tata Letak Manual' }), n: 3 },
-    { loc: more.getByRole('button', { name: 'Tema gelap' }), n: 4 },
-  ]);
+  await tid(page, 'sheet-grip').tap(); // collapse the sheet to its bar
+  await page.waitForTimeout(500);
+  await tid(page, 'gen-chip').tap();
+  const gens = tid(page, 'gen-popover');
+  await gens.waitFor();
+  for (let i = 0; i < 11; i++) await gens.getByTestId('gen-up-minus').tap();
+  await gens.getByTestId('gen-up-plus').tap();
+  for (let i = 0; i < 11; i++) await gens.getByTestId('gen-down-minus').tap();
+  await gens.getByTestId('gen-down-plus').tap();
+  await shot(page, '27-mobile-generasi', [{ loc: gens.getByTestId('gen-control'), n: 1 }]);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(900);
+
+  await tid(page, 'btn-more').tap();
+  const more = tid(page, 'more-menu');
+  await more.waitFor();
+  await page.waitForTimeout(250);
+  await shot(page, '26-mobile-menu', [
+    { loc: tid(page, 'more-manual'), n: 1 },
+    { loc: tid(page, 'more-theme'), n: 2 },
+    { loc: tid(page, 'more-lang-id'), n: 3 },
+    { loc: tid(page, 'more-reset'), n: 4 },
+  ]);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(600);
   await shot(page, '24-mobile-pohon', [
     { loc: tid(page, 'btn-open'), n: 1 },
     { loc: tid(page, 'btn-more'), n: 2 },
-    { loc: page.locator('.sidebar-grip'), n: 3 },
+    { loc: tid(page, 'sheet-grip'), n: 3 },
     { loc: page.locator('.zoom-controls'), n: 4 },
-    { loc: page.locator('.view-info'), n: 5 },
+    { loc: tid(page, 'gen-chip'), n: 5 },
   ]);
-  await page.locator('.sidebar-grip').tap();
-  await page.waitForTimeout(500);
-  await page.locator('.sidebar-body').evaluate((e) => (e.scrollTop = 0));
-  await page.waitForTimeout(200);
-  await shot(page, '25-mobile-editor', [{ loc: tid(page, 'sidebar'), n: 1 }, { loc: tid(page, 'edit-person'), n: 2 }, { loc: page.locator('.sidebar-grip'), n: 3 }]);
+  await tapCard('Dimas');
+  await page.waitForTimeout(400);
+  await shot(page, '25-mobile-editor', [
+    { loc: card(page, 'Dimas'), n: 1 },
+    { loc: tid(page, 'sheet-drag'), n: 2 },
+    { loc: tid(page, 'add-child'), n: 3 },
+  ]);
+  // Long-press a card for its action menu.
+  const bg = card(page, 'Dimas').locator('.card-bg');
+  const b = await bg.boundingBox();
+  const at = { pointerType: 'touch', isPrimary: true, pointerId: 9, clientX: b.x + b.width / 2, clientY: b.y + 14, bubbles: true, button: 0, buttons: 1 };
+  await bg.dispatchEvent('pointerdown', at);
+  await page.waitForTimeout(650);
+  await bg.dispatchEvent('pointerup', { ...at, buttons: 0 });
+  await tid(page, 'person-menu').waitFor();
+  await page.waitForTimeout(300);
+  await shot(page, '28-mobile-menu-kartu', [{ loc: tid(page, 'person-menu'), n: 1 }]);
   await ctx.close();
 }
 

@@ -414,7 +414,7 @@ html[data-layout='narrow'] .popover { width: 100%; max-height: min(78dvh, calc(1
 
 /* ---- Card action menu ---- */
 .card-more {
-  position: absolute; z-index: 4; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center;
+  position: absolute; z-index: 4; transform: translate(-50%, -50%); width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center;
   border: 1px solid var(--panel-border); background: var(--panel-solid); color: var(--muted); font-size: 16px; line-height: 1;
   box-shadow: var(--shadow); padding: 0;
 }
@@ -478,3 +478,15 @@ button:focus-visible, a:focus-visible, [role='tab']:focus-visible, [role='menuit
 .app { grid-template-rows: calc(var(--header-h) + env(safe-area-inset-top, 0px)) 1fr; }
 .header { padding-top: env(safe-area-inset-top, 0px); padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); }
 html[data-layout='narrow'] .header { padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px)); }
+
+/* ---- First-visit tips ---- */
+.onboarding {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 8; width: min(380px, calc(100% - 24px));
+  background: var(--panel-solid); border: 1px solid var(--panel-border); border-top: 3px solid var(--accent); border-radius: 14px;
+  box-shadow: var(--shadow); padding: 12px 14px; font-size: 13.5px; line-height: 1.45;
+}
+.onboarding-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.onboarding ul { margin: 8px 0 10px; padding-left: 18px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+.onboarding-x { border: 0; background: transparent; color: var(--dim); width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; }
+html[data-pointer='coarse'] .onboarding-x { width: 44px; height: 44px; }
+.onboarding-ok { width: auto; margin-left: auto; padding: 0 16px; }

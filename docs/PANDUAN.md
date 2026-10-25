@@ -48,7 +48,7 @@ Aplikasi dibuka dengan pohon awal tiga orang (saya, ayah, ibu) dan "Saya" sudah 
 
 | No | Bagian | Fungsi |
 |---|---|---|
-| 1 | **Panel editor** (kiri) | Menampilkan data orang terpilih, tombol **Ubah data**, **Tambah kerabat**, dan **Hapus orang**. Di ponsel berubah menjadi panel bawah. |
+| 1 | **Panel editor** (kiri) | Menampilkan data orang terpilih, tombol **Ubah data**, **Tambah kerabat**, dan **Hapus orang**. Tombol yang tidak bisa dipakai menuliskan alasannya (mis. *Orang tua sudah ada*). Lebar panel bisa diubah dengan menyeret tepi kanannya, dan aplikasi mengingatnya. Di tablet panel menjadi laci di atas kanvas; di ponsel menjadi lembar bawah (bagian 13). |
 | 2 | **Buka** | Membuka/mengimpor `.sambung`, `.ged`, atau `.zip`; menautkan folder foto. |
 | 3 | **Simpan** (Ctrl+S) | Mengunduh file `.sambung` yang bisa dibuka ulang. |
 | 4 | **Ekspor** | PNG, JPEG, SVG, GEDCOM, dan dokumen silsilah teks. |
@@ -56,9 +56,11 @@ Aplikasi dibuka dengan pohon awal tiga orang (saya, ayah, ibu) dan "Saya" sudah 
 | 6 | **Generasi ▲/▼** | Berapa generasi leluhur (▲) dan keturunan (▼) yang ditampilkan. |
 | 7 | **Pengaturan pohon** | Format tanggal, ukuran huruf, kolom kartu, tema, bahasa. |
 | 8 | **Tata letak manual** | Menggeser kartu dan garis secara manual. |
-| 9 | **Kartu orang** | Klik/ketuk untuk memilih. Kartu terpilih diberi sorotan hijau, dan garis keturunannya ikut menyala. Cincin foto: **biru = laki-laki, magenta = perempuan, ungu putus-putus = lainnya**. |
+| 9 | **Kartu orang** | Klik/ketuk untuk memilih; klik ganda untuk langsung mengubah data. **Klik kanan** (atau **tekan lama** di layar sentuh, atau tombol **⋯** di sudut kartu terpilih) membuka menu aksi (bagian 4). Kartu terpilih diberi sorotan hijau, dan garis keturunannya ikut menyala. Cincin foto: **biru = laki-laki, magenta = perempuan, ungu putus-putus = lainnya**. |
 | 10 | **Kontrol kanvas** | Pusatkan pohon, perbesar, perkecil. Roda mouse, seret, dan cubit (pinch) juga bekerja. |
 | 11 | **Panduan (?)** | Membuka panduan ini di GitHub (butuh internet; aplikasi sendiri tetap berjalan luring). |
+
+Arahkan mouse ke tombol ikon untuk melihat namanya beserta pintasan keyboard-nya. Tekan **?** untuk daftar semua pintasan (bagian 8).
 
 Di bagian bawah kiri kanvas ada keterangan **"3/3 tampil"** (jumlah orang yang terlihat dari seluruh pohon), orang fokus, legenda warna cincin, dan persentase zoom.
 
@@ -129,6 +131,22 @@ Pilih seseorang, lalu gunakan tombol di bagian **Tambah kerabat**.
 | 5 | Orang baru langsung terpilih dan kanvas berpindah ke sana. Contoh: "Pasangan dari Dimas". |
 
 Setelah menambah, ubah nama dan datanya dengan **Ubah data** (bagian 3).
+
+### Menu aksi kartu
+
+Semua aksi di atas juga tersedia langsung dari pohon, tanpa ke panel.
+
+![Menu aksi kartu](img/29-menu-kartu.png)
+
+| No | Keterangan |
+|---|---|
+| 1 | Tombol **⋯** di sudut kartu terpilih. Bisa juga **klik kanan** kartu mana pun, atau **tekan lama** di layar sentuh. |
+| 2 | Pilih aksi, mis. **Tambah anak**. Aksi yang tidak tersedia tetap tercantum beserta alasannya. |
+| 3 | **Hapus orang** dipisahkan di bagian bawah. |
+
+### Salah langkah? Urungkan
+
+Setiap perubahan pada isi pohon bisa diurungkan: **Ctrl+Z** untuk urungkan dan **Ctrl+Shift+Z** (atau Ctrl+Y) untuk ulangi. Setelah menghapus seseorang, muncul pemberitahuan dengan tombol **Urungkan** yang mengembalikan orang itu beserta hubungannya. Membuka berkas baru memulai riwayat baru.
 
 ### Dialog Tambah anak
 
@@ -252,6 +270,14 @@ Untuk pohon besar, batasi generasi supaya kartu tetap terbaca.
 | 5 | Dimas adalah orang fokus. Pasangan dan saudara ikut tampil. |
 
 Pengaturan yang sama berlaku untuk **ekspor** bila Anda memilih *Tampilan saat ini*.
+
+### Pintasan keyboard
+
+Tekan **?** kapan saja untuk melihat daftar ini dalam bahasa yang dipilih.
+
+![Pintasan keyboard](img/30-pintasan.png)
+
+Saat fokus ada di pohon (klik bagian kosong kanvas, atau tekan Tab sampai kanvas bergaris hijau), **tombol panah** memindahkan pilihan ke orang tua (↑), anak (↓), atau saudara/pasangan (← →). **Enter** membuka *Ubah data*, **Delete** menghapus (dengan konfirmasi), **+ / − / 0** memperbesar, memperkecil, dan memuatkan pohon. Pintasan tidak aktif saat Anda sedang mengetik di kolom isian.
 
 ### Mencari orang
 
@@ -410,36 +436,46 @@ Bahasa hanya mengubah tampilan; data keluarga Anda tidak berubah.
 
 ## 13. Di ponsel, dan memasang sebagai aplikasi
 
-Pada layar sempit (≤760 px) tampilan menyesuaikan diri: panel editor menjadi **panel bawah**, dan alat sekunder pindah ke menu **⋯**.
+Pada layar sempit (≤760 px) tampilan menyesuaikan diri: panel editor menjadi **lembar bawah** yang bisa diseret, dan alat sekunder pindah ke menu **⋯**. Semua tombol berukuran minimal 44 px supaya mudah diketuk. Pada layar pertama muncul petunjuk singkat; ketuk **Mengerti** dan petunjuk itu tidak muncul lagi.
 
 ![Pohon di ponsel](img/24-mobile-pohon.png)
 
 | No | Keterangan |
 |---|---|
-| 1 | **Buka**, **Simpan**, **Ekspor**, **Cari**, **Pengaturan**, dan **⋯** selalu terlihat di bilah atas. |
-| 2 | Menu **⋯**: kontrol generasi, bahasa, tata letak manual, tema, atur ulang. |
-| 3 | Panel bawah **Penyunting**. Ketuk untuk membuka/menutup. |
-| 4 | Pusatkan, perbesar, perkecil. Cubit dengan dua jari untuk zoom. |
-| 5 | Penghitung orang tampil. |
+| 1 | **Buka**, **Simpan**, **Ekspor**, **Cari**, **Pengaturan**, dan **⋯** selalu terlihat di bilah atas. Titik pada tombol Simpan menunjukkan status: hijau = tersimpan, jingga = ada perubahan yang belum disimpan ke file. |
+| 2 | Menu **⋯** (gambar di bawah). |
+| 3 | Bilah lembar penyunting berisi nama orang terpilih. Ketuk atau seret ke atas untuk membukanya. |
+| 4 | Pusatkan, perbesar, perkecil. Cubit dengan dua jari untuk zoom, atau **ketuk dua kali** untuk memperbesar di titik itu. |
+| 5 | Chip **▲ ▼**: jumlah generasi yang tampil. Ketuk untuk mengubahnya. |
 
-Di ponsel, batasi generasi (mis. ▲1 ▼1) supaya kartu terbaca, seperti pada gambar ini.
+![Kontrol generasi di ponsel](img/27-mobile-generasi.png)
+
+| No | Keterangan |
+|---|---|
+| 1 | Atur ▲ (leluhur) dan ▼ (keturunan). Di ponsel, batasi generasi (mis. ▲1 ▼1) supaya kartu terbaca. |
 
 ![Menu ⋯](img/26-mobile-menu.png)
 
 | No | Keterangan |
 |---|---|
-| 1 | Kontrol generasi ▲ (leluhur) dan ▼ (keturunan). |
-| 2 | Bahasa. |
-| 3 | Tata letak manual. |
-| 4 | Ganti ke tema gelap. |
+| 1 | Tata letak manual. |
+| 2 | Ganti tema terang/gelap. |
+| 3 | Bahasa. |
+| 4 | **Atur ulang pohon** dipisahkan dari pengaturan tampilan dan selalu meminta konfirmasi. |
 
 ![Editor di ponsel](img/25-mobile-editor.png)
 
 | No | Keterangan |
 |---|---|
-| 1 | Ketuk sebuah kartu: panel bawah terbuka berisi data orang itu. |
-| 2 | **Ubah data**, **Tambah kerabat**, dan **Hapus orang** bekerja seperti di desktop. |
-| 3 | Ketuk batang atas panel untuk menutupnya dan kembali melihat pohon. |
+| 1 | Ketuk sebuah kartu: lembar terbuka setengah, dan kartu itu tetap terlihat di atasnya. |
+| 2 | Seret lembar ke atas untuk tinggi penuh, ke bawah untuk kembali ke bilah. **Ubah data** membuka lembar penuh. Tombol **Kembali** di Android menutup lembar penuh atau dialog lebih dulu, tanpa keluar dari aplikasi. |
+| 3 | **Tambah kerabat** langsung di bawah nama, jadi cukup satu ketukan. Ketuk bagian kosong pohon untuk menutup lembar. |
+
+![Menu aksi kartu di ponsel](img/28-mobile-menu-kartu.png)
+
+| No | Keterangan |
+|---|---|
+| 1 | **Tekan lama** sebuah kartu untuk menu aksinya, muncul dari bawah layar supaya terjangkau ibu jari. |
 
 ### Memasang dan memakai tanpa internet
 
@@ -454,7 +490,8 @@ Di ponsel, batasi generasi (mis. ▲1 ▼1) supaya kartu terbaca, seperti pada g
 | Masalah | Penyebab / solusi |
 |---|---|
 | Foto tidak muncul setelah membuka GEDCOM | GEDCOM hanya mencatat lokasi foto. Pakai **Buka → Tautkan folder foto…**. Foto yang belum tertaut ditandai di panel *Gambar*. |
-| "Tambah orang tua" nonaktif | Orang itu sudah punya orang tua. |
+| Sebuah tombol abu-abu | Alasannya tertulis di bawah label tombol, mis. *Orang tua sudah ada*. |
+| Terhapus tanpa sengaja | Ketuk **Urungkan** pada pemberitahuan, atau tekan **Ctrl+Z**. |
 | Tidak bisa menghapus seseorang | Aturan hapus (bagian 6). Hapus cabang terluar lebih dulu. |
 | Pohon terlalu kecil/rapat | Kurangi generasi, atau pakai **Pusatkan**. Untuk ekspor, pakai preset **Ringkas** atau SVG. |
 | Ekspor PNG gagal pada pohon sangat besar | Batas kanvas browser. Kurangi generasi atau ekspor **SVG**. |

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { Drawer } from '@base-ui/react/drawer';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { SHEET_BAR_PX, type SheetSnap } from './sheetSnap';
@@ -17,8 +17,16 @@ export default function SheetFrame(props: {
   label: string;
   gripLabel: string;
   title: string;
+  /** Changing this (another person picked) scrolls the sheet back to its top. */
+  resetKey?: string | null;
   children: ReactNode;
 }) {
+  const body = useRef<HTMLDivElement>(null);
+  const opened = props.snap !== 'bar';
+  // Opening the sheet from its bar, or picking someone else, starts at the top (name and actions).
+  useEffect(() => {
+    if (body.current) body.current.scrollTop = 0;
+  }, [props.resetKey, opened]);
   const collapsed = props.snap === 'bar';
   return (
     <Drawer.Root
@@ -49,7 +57,7 @@ export default function SheetFrame(props: {
                   <span className="sr-only">, {props.gripLabel}</span>
                 </button>
               </div>
-              <Drawer.Content className="sidebar-body sheet-body">{props.children}</Drawer.Content>
+              <Drawer.Content ref={body} className="sidebar-body sheet-body">{props.children}</Drawer.Content>
             </Drawer.Popup>
           </Drawer.Viewport>
         </Drawer.Portal>

@@ -5,7 +5,9 @@ import path from 'node:path';
 
 const fixture = path.resolve('tests/fixtures/synthetic.ged');
 
-async function fresh(page: Page, lang: 'en' | 'id' | 'jv' | null = 'en') {
+async function fresh(page: Page, lang: 'en' | 'id' | 'jv' | null = 'en', opts: { onboarding?: boolean } = {}) {
+  // The first-visit tips are covered by their own test; elsewhere they would only sit on top of the canvas.
+  if (!opts.onboarding) await page.addInitScript(() => localStorage.setItem('sambungdulur.onboarded', '1'));
   // Every test runs in a new browser context, so storage starts empty. Most tests assert English labels
   // (the Indonesian default is covered separately): pick the language before the app first loads, so the
   // starter tree is created in it. A language chosen later in the test (settings, localStorage) is kept.
@@ -978,4 +980,40 @@ test('large text: at 200 % zoom the header and editor still fit without overlap'
   const header = (await page.locator('header').boundingBox())!;
   const sheet = (await page.getByTestId('sidebar').boundingBox())!;
   expect(sheet.y).toBeGreaterThanOrEqual(header.y + header.height - 1);
+});
+
+test('first-visit tips appear once, are worded for the device and can be dismissed', async ({ page }) => {
+  await fresh(page, 'en', { onboarding: true });
+  const tips = page.getByTestId('onboarding');
+  await expect(tips).toContainText('Right-click a card');
+  await expect(tips).toContainText('Press ?');
+  await page.getByTestId('onboarding-ok').click();
+  await expect(tips).toBeHidden();
+  await page.reload();
+  await expect(page.getByTestId('tree-canvas')).toBeVisible();
+  await expect(tips).toHaveCount(0);
+});
+
+test('first-visit tips on phones talk about tapping and the sheet; Escape dismisses them @mobile', async ({ page }) => {
+  await fresh(page, 'id', { onboarding: true });
+  const tips = page.getByTestId('onboarding');
+  await expect(tips).toContainText('Tekan lama');
+  await expect(tips).toContainText('Seret lembar');
+  await expect(tips).not.toContainText('Klik kanan');
+  await page.keyboard.press('Escape');
+  await expect(tips).toBeHidden();
+});
+
+test('picking another person shows the sheet from its top @mobile', async ({ page }) => {
+  await fresh(page);
+  await card(page, 'Me').locator('.card-bg').tap({ position: { x: 20, y: 20 } });
+  await page.getByTestId('sheet-grip').tap(); // bar
+  await page.getByTestId('sheet-grip').tap(); // half
+  await page.locator('.sheet-body').evaluate((e) => (e.scrollTop = 400));
+  await expect.poll(() => page.locator('.sheet-body').evaluate((e) => e.scrollTop)).toBeGreaterThan(0);
+  await page.getByTestId('btn-search').tap();
+  await page.getByTestId('search-input').fill('mother');
+  await page.getByTestId('search-input').press('Enter');
+  await expect(page.getByTestId('selected-name')).toHaveText('My Mother');
+  await expect.poll(() => page.locator('.sheet-body').evaluate((e) => e.scrollTop)).toBe(0);
 });

@@ -33,6 +33,7 @@ import { getViewport, useViewport } from './ui/viewport';
 import { commandFor, keyContext, shortcutText, type Command } from './ui/shortcuts';
 import { kinNeighbour } from './model/kinNav';
 import { personLabel } from './model/a11y';
+import { ONBOARDED_KEY, OnboardingHint } from './ui/OnboardingHint';
 
 // Loaded on demand (and precached by the service worker for offline use): not needed for the first view.
 const loadDialogs = () => import('./ui/dialogs');
@@ -168,6 +169,21 @@ export default function App() {
   // Screen-reader announcements (polite live region); toasts announce themselves.
   const [announcement, setAnnouncement] = useState('');
   const announce = (text: string) => setAnnouncement((cur) => (cur === text ? `${text} ` : text));
+  const [onboarding, setOnboarding] = useState(() => {
+    try {
+      return !localStorage.getItem(ONBOARDED_KEY);
+    } catch {
+      return false;
+    }
+  });
+  const dismissOnboarding = () => {
+    setOnboarding(false);
+    try {
+      localStorage.setItem(ONBOARDED_KEY, '1');
+    } catch {
+      /* no storage */
+    }
+  };
   const [cardMenu, setCardMenu] = useState<{ id: string; anchor: MenuAnchor } | null>(null);
   const [editRequest, setEditRequest] = useState<{ id: string; n: number } | null>(null);
   const [manualMode, setManualMode] = useState(false);
@@ -934,6 +950,7 @@ export default function App() {
           </div>
         )}
 
+        {onboarding && !manualMode && <OnboardingHint pointer={viewport.pointer} onDismiss={dismissOnboarding} />}
         <div className="view-info" data-testid="view-info">
           {narrow && (
             <Suspense fallback={null}>

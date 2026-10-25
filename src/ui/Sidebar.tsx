@@ -265,6 +265,11 @@ export function Sidebar(props: Props) {
   const onEditingChange = props.onEditingChange;
   useEffect(() => onEditingChange?.(editing), [editing, onEditingChange]);
   const sheet = props.sheet ?? null;
+  // A newly picked person is shown from the top of the panel, not wherever the last one was scrolled to.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (bodyRef.current) bodyRef.current.scrollTop = 0;
+  }, [selectedId]);
   const p = selectedId ? doc.persons[selectedId] : undefined;
   const fmt = (v: string) => formatDate(v, doc.settings.dateFormat) || t('unknown');
   const tabLabel = (x: Tab) => (x === 'personal' ? t('tabPersonal') : x === 'biography' ? t('tabBiography') : t('tabImage'));
@@ -437,6 +442,7 @@ export function Sidebar(props: Props) {
           label={t('editorMenu')}
           gripLabel={toggleLabel}
           title={p ? displayName(p, doc.settings) : t('editor')}
+          resetKey={selectedId}
         >
           {body}
         </SheetFrame>
@@ -458,7 +464,9 @@ export function Sidebar(props: Props) {
           {p ? displayName(p, doc.settings) : t('editor')}
           <span className="sr-only">, {toggleLabel}</span>
         </button>
-        <div className="sidebar-body">{body}</div>
+        <div className="sidebar-body" ref={bodyRef}>
+          {body}
+        </div>
       </aside>
       <button
         className="sidebar-handle hide-mobile"
