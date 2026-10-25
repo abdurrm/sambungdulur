@@ -464,6 +464,7 @@ export function Sidebar(props: Props) {
         style={{ left: props.hidden ? 0 : (props.width ?? PANEL_DEFAULT) }}
         onClick={props.onToggleHidden}
         aria-label={toggleLabel}
+        data-tip={toggleLabel}
         data-testid="sidebar-toggle"
       >
         {props.hidden ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}

@@ -19,7 +19,7 @@ export default function MoreMenu(props: {
 }) {
   return (
     <Menu.Root open={props.open} onOpenChange={props.onOpenChange}>
-      <Menu.Trigger className={`tool-btn${props.open ? ' active' : ''}`} data-testid="btn-more" aria-label={t('moreTools')} title={t('moreTools')}>
+      <Menu.Trigger className={`tool-btn${props.open ? ' active' : ''}`} data-testid="btn-more" aria-label={t('moreTools')} data-tip={t('moreTools')}>
         <MoreHorizontal size={18} />
       </Menu.Trigger>
       <Menu.Portal>

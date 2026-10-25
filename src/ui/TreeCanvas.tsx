@@ -324,7 +324,7 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
           style={{ left: t.applyX(selectedNode.x - selectedNode.w / 2) + 6, top: t.applyY(selectedNode.y) + 6 }}
           aria-label={tx('cardActions', { name: displayName(props.doc.persons[selectedNode.id], props.doc.settings) })}
           aria-haspopup="menu"
-          title={tx('cardActions', { name: displayName(props.doc.persons[selectedNode.id], props.doc.settings) })}
+          data-tip={tx('cardActions', { name: displayName(props.doc.persons[selectedNode.id], props.doc.settings) })}
           onClick={(e) => openMenu(selectedNode.id, e.currentTarget)}
           data-testid="card-more"
         >

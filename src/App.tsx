@@ -30,7 +30,7 @@ import type { PersonActionId } from './model/personActions';
 import { GUIDE_URL } from './links';
 import { initialLang, LANG_KEY, setLang as setI18nLang, t, type Lang } from './i18n';
 import { getViewport, useViewport } from './ui/viewport';
-import { commandFor, keyContext, type Command } from './ui/shortcuts';
+import { commandFor, keyContext, shortcutText, type Command } from './ui/shortcuts';
 import { kinNeighbour } from './model/kinNav';
 
 // Loaded on demand (and precached by the service worker for offline use): not needed for the first view.
@@ -43,6 +43,12 @@ function notify(text: string, opts?: Parameters<typeof import('./ui/toasts').not
 }
 const loadPopups = () => import('./ui/HeaderPopups');
 const MoreMenu = lazy(() => import('./ui/MoreMenu'));
+const TooltipLayer = lazy(() => import('./ui/TooltipLayer'));
+/** Accessible name plus the tooltip text (with the keyboard shortcut, if there is one). */
+function tip(label: string, cmd?: Command) {
+  const keys = cmd ? shortcutText(cmd) : undefined;
+  return { 'aria-label': label, 'data-tip': keys && !label.includes(keys) ? `${label} (${keys})` : label };
+}
 const PersonMenu = lazy(() => import('./ui/PersonMenu'));
 const ToolPopover = lazy(() => loadPopups().then((m) => ({ default: m.ToolPopover })));
 const AddChildDialog = lazy(() => loadDialogs().then((m) => ({ default: m.AddChildDialog })));
@@ -57,6 +63,7 @@ function preloadLazyUi() {
     void loadToasts();
     void loadPopups();
     void import('./ui/MoreMenu');
+    if (getViewport().pointer === 'fine') void import('./ui/TooltipLayer');
     void import('./ui/PersonMenu');
     void import('./ui/ExportDialog');
     void import('./ui/OpenDialog');
@@ -723,7 +730,7 @@ export default function App() {
         {!narrow && (
           <span
             className={`status-chip${dirty ? ' dirty' : ''}`}
-            title={t('savedHint')}
+            data-tip={t('savedHint')}
             aria-label={statusText}
             data-testid="status-chip"
           >
@@ -732,25 +739,24 @@ export default function App() {
         )}
         <div className="spacer" />
         <nav className="toolbar" aria-label={t('treeTools')}>
-          <button className="tool-btn keep-label" onClick={() => setDialog({ kind: 'open' })} data-testid="btn-open" title={t('openTitle')}>
+          <button className="tool-btn keep-label" onClick={() => setDialog({ kind: 'open' })} data-testid="btn-open" {...tip(t('openTitle'))}>
             <FolderOpen size={18} /> <span className="label">{t('open')}</span>
           </button>
           <button
             className="tool-btn keep-label"
             onClick={saveFile}
             data-testid="btn-save"
-            title={narrow ? `${t('saveTitle')} (${statusText})` : t('saveTitle')}
-            aria-label={narrow ? `${t('save')} · ${statusText}` : undefined}
+            {...tip(narrow ? `${t('save')} · ${statusText}` : t('saveTitle'), 'save')}
           >
             <Save size={18} /> <span className="label">{t('save')}</span>
             {/* Phones: the save status rides on the Save button instead of a separate chip. */}
             {narrow && <span className={`save-badge${dirty ? ' dirty' : ''}`} data-testid="status-chip" aria-hidden="true" />}
           </button>
-          <button className="tool-btn keep-label primary" onClick={() => setDialog({ kind: 'export' })} data-testid="btn-export" title={t('export')}>
+          <button className="tool-btn keep-label primary" onClick={() => setDialog({ kind: 'export' })} data-testid="btn-export" {...tip(t('export'))}>
             <Download size={18} /> <span className="label">{t('export')}</span>
           </button>
           {!narrow && <span className="tool-sep" />}
-          <Suspense fallback={<button disabled className={`tool-btn${popover === 'search' ? ' active' : ''}`} data-testid="btn-search" title={t('searchTitle')}>
+          <Suspense fallback={<button disabled className={`tool-btn keep-label${popover === 'search' ? ' active' : ''}`} data-testid="btn-search" {...tip(t('searchPeople'), 'search')}>
                 <Search size={18} /> <span className="label">{t('search')}</span>
               </button>}>
           <ToolPopover
@@ -760,7 +766,7 @@ export default function App() {
             testId="search-panel"
             className="search-popover"
             trigger={
-              <button className={`tool-btn${popover === 'search' ? ' active' : ''}`} data-testid="btn-search" title={t('searchTitle')}>
+              <button className={`tool-btn keep-label${popover === 'search' ? ' active' : ''}`} data-testid="btn-search" {...tip(t('searchPeople'), 'search')}>
                 <Search size={18} /> <span className="label">{t('search')}</span>
               </button>
             }
@@ -787,7 +793,7 @@ export default function App() {
               <LanguageSelect lang={lang} onChange={changeLang} />
             </span>
           )}
-          <Suspense fallback={<button disabled className={`tool-btn${popover === 'settings' ? ' active' : ''}`} data-testid="btn-settings" title={t('treeSettings')}>
+          <Suspense fallback={<button disabled className={`tool-btn${popover === 'settings' ? ' active' : ''}`} data-testid="btn-settings" {...tip(t('treeSettings'))}>
                 <Settings2 size={18} /> <span className="label">{t('treeSettings')}</span>
               </button>}>
           <ToolPopover
@@ -796,7 +802,7 @@ export default function App() {
             label={t('treeSettings')}
             testId="settings-menu"
             trigger={
-              <button className={`tool-btn${popover === 'settings' ? ' active' : ''}`} data-testid="btn-settings" title={t('treeSettings')}>
+              <button className={`tool-btn${popover === 'settings' ? ' active' : ''}`} data-testid="btn-settings" {...tip(t('treeSettings'))}>
                 <Settings2 size={18} /> <span className="label">{t('treeSettings')}</span>
               </button>
             }
@@ -806,25 +812,25 @@ export default function App() {
           </Suspense>
           {wide ? (
             <>
-              <button className={`tool-btn${manualMode ? ' active' : ''}`} onClick={toggleManual} data-testid="btn-manual" title={t('manualLayout')}>
+              <button className={`tool-btn${manualMode ? ' active' : ''}`} onClick={toggleManual} data-testid="btn-manual" {...tip(t('manualLayout'))}>
                 <LayoutTemplate size={18} /> <span className="label">{t('manualLayout')}</span>
               </button>
-              <button className="tool-btn" onClick={() => setDialog({ kind: 'confirmReset' })} data-testid="btn-reset" title={t('resetTree')}>
+              <button className="tool-btn" onClick={() => setDialog({ kind: 'confirmReset' })} data-testid="btn-reset" {...tip(t('resetTree'))}>
                 <RotateCcw size={18} /> <span className="label">{t('reset')}</span>
               </button>
               <button
                 className="tool-btn"
                 onClick={() => patchSettings({ theme: doc.settings.theme === 'light' ? 'dark' : 'light' })}
                 data-testid="btn-theme"
-                title={t('toggleTheme')}
+                {...tip(t('toggleTheme'))}
               >
                 {doc.settings.theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
               </button>
-              <a className="tool-btn" href={GUIDE_URL} target="_blank" rel="noopener noreferrer" title={t('helpTitle')} aria-label={t('helpTitle')} data-testid="btn-help">
+              <a className="tool-btn" href={GUIDE_URL} target="_blank" rel="noopener noreferrer" {...tip(t('helpTitle'))} data-testid="btn-help">
                 <CircleHelp size={18} />
               </a>
               {installEvt && (
-                <button className="tool-btn" onClick={() => installEvt.prompt().then(() => setInstallEvt(null))} title={t('installApp')}>
+                <button className="tool-btn" onClick={() => installEvt.prompt().then(() => setInstallEvt(null))} {...tip(t('installApp'))}>
                   <MonitorDown size={18} /> <span className="label">{t('install')}</span>
                 </button>
               )}
@@ -915,8 +921,8 @@ export default function App() {
           <div className="manual-bar" data-testid="manual-bar">
             <span>{t('manualBar')}</span>
             <button className="btn" style={{ width: 'auto', height: 32 }} onClick={() => setDialog({ kind: 'confirmResetManual' })}>{t('resetManual')}</button>
-            <button className="btn ghost" style={{ width: 'auto', height: 32 }} onClick={toggleManual} title={t('cancelChanges')} data-testid="manual-cancel">{t('cancel')}</button>
-            <button className="btn primary" style={{ width: 'auto', height: 32 }} onClick={saveManual} disabled={!Object.keys(draftDx).length && !Object.keys(draftDy).length} title={t('saveManualChanges')} data-testid="manual-save">{t('save')}</button>
+            <button className="btn ghost" style={{ width: 'auto', height: 32 }} onClick={toggleManual} data-tip={t('cancelChanges')} data-testid="manual-cancel">{t('cancel')}</button>
+            <button className="btn primary" style={{ width: 'auto', height: 32 }} onClick={saveManual} disabled={!Object.keys(draftDx).length && !Object.keys(draftDy).length} data-tip={t('saveManualChanges')} data-testid="manual-save">{t('save')}</button>
           </div>
         )}
 
@@ -954,13 +960,13 @@ export default function App() {
           <span>{Math.round(scale * 100)}%</span>
         </div>
         <div className="zoom-controls">
-          <button className="fab" onClick={() => canvas.current?.fit()} title={t('centerTree')} aria-label={t('centerTree')} data-testid="btn-center">
+          <button className="fab" onClick={() => canvas.current?.fit()} {...tip(t('centerTree'), 'center')} data-testid="btn-center">
             <Maximize size={18} />
           </button>
-          <button className="fab" onClick={() => canvas.current?.zoomBy(1.15)} title={t('zoomIn')} aria-label={t('zoomIn')} disabled={scale >= ZOOM_MAX} data-testid="btn-zoom-in">
+          <button className="fab" onClick={() => canvas.current?.zoomBy(1.15)} {...tip(t('zoomIn'), 'zoomIn')} disabled={scale >= ZOOM_MAX} data-testid="btn-zoom-in">
             <ZoomIn size={18} />
           </button>
-          <button className="fab" onClick={() => canvas.current?.zoomBy(0.85)} title={t('zoomOut')} aria-label={t('zoomOut')} disabled={scale <= ZOOM_MIN} data-testid="btn-zoom-out">
+          <button className="fab" onClick={() => canvas.current?.zoomBy(0.85)} {...tip(t('zoomOut'), 'zoomOut')} disabled={scale <= ZOOM_MIN} data-testid="btn-zoom-out">
             <ZoomOut size={18} />
           </button>
         </div>
@@ -1086,6 +1092,7 @@ export default function App() {
       </Suspense>
       <Suspense fallback={null}>
         <Toasts />
+        {viewport.pointer === 'fine' && <TooltipLayer />}
       </Suspense>
       <KeyboardShortcuts onCommand={onCommand} />
     </div>

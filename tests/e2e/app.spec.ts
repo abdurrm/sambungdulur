@@ -875,3 +875,33 @@ test('opening a file starts a fresh undo history', async ({ page }) => {
   await page.keyboard.press('Control+z');
   await expect(page.getByTestId('view-info')).toContainText('4/4 shown');
 });
+
+test('icon tools show a quick tooltip with their shortcut; primary actions are labelled', async ({ page }) => {
+  await fresh(page);
+  const search = page.getByTestId('btn-search');
+  await expect(search).toContainText('Search');
+  await expect(search).not.toHaveAttribute('title', /.*/); // no slow native tooltip on top of ours
+  await search.hover();
+  const tip = page.getByTestId('tooltip');
+  await expect(tip).toBeVisible();
+  await expect(tip).toContainText('Search people');
+  await expect(tip).toContainText(/Ctrl\+F|⌘F/);
+  // Moving to the next tool switches the tooltip straight away.
+  await page.getByTestId('btn-zoom-in').hover();
+  await expect(tip).toContainText('Zoom in (+)');
+  await page.mouse.move(700, 450);
+  await expect(tip).toBeHidden();
+
+  // Keyboard focus shows it too.
+  await page.getByTestId('tree-title').focus();
+  await page.keyboard.press('Tab');
+  await expect(page.getByTestId('btn-open')).toBeFocused();
+  await expect(tip).toContainText('Open / import');
+});
+
+test('touch screens get no tooltips: a tap just runs the action @mobile', async ({ page }) => {
+  await fresh(page);
+  await page.getByTestId('btn-search').tap();
+  await expect(page.getByTestId('search-panel')).toBeVisible();
+  await expect(page.getByTestId('tooltip')).toHaveCount(0);
+});
