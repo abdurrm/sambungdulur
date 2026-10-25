@@ -15,6 +15,7 @@ fs.mkdirSync(IMG, { recursive: true });
 fs.mkdirSync(DEMO, { recursive: true });
 
 const browser = await chromium.launch({ channel: 'msedge' });
+let missing = 0;
 
 async function newPage(opts = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1400, height: 860 }, acceptDownloads: true, ...opts });
@@ -41,6 +42,7 @@ async function shot(page, name, marks = [], opts = {}) {
     const b = await m.loc.first().boundingBox();
     if (!b) {
       console.warn(`  ! no box for marker ${m.n} in ${name}`);
+      missing++;
       continue;
     }
     boxes.push({ n: m.n, pos: m.pos || 'tl', outline: m.outline !== false, ...b });
@@ -71,6 +73,33 @@ async function shot(page, name, marks = [], opts = {}) {
 
 const card = (page, name) => page.locator('g.person', { hasText: name }).first();
 const tid = (page, id) => page.getByTestId(id);
+/** A synthetic landscape "kampung" picture for the canvas background (generated, no real photo). */
+async function makeLandscape(page, file) {
+  const b64 = await page.evaluate(() => {
+    const c = document.createElement('canvas');
+    c.width = 1600;
+    c.height = 1000;
+    const x = c.getContext('2d');
+    const sky = x.createLinearGradient(0, 0, 0, 1000);
+    sky.addColorStop(0, '#9cc4e4');
+    sky.addColorStop(0.55, '#f3e3cf');
+    sky.addColorStop(1, '#7c9a5b');
+    x.fillStyle = sky;
+    x.fillRect(0, 0, 1600, 1000);
+    x.fillStyle = '#4f6b3a';
+    x.beginPath();
+    x.moveTo(0, 700);
+    x.quadraticCurveTo(400, 520, 800, 660);
+    x.quadraticCurveTo(1200, 560, 1600, 640);
+    x.lineTo(1600, 1000);
+    x.lineTo(0, 1000);
+    x.fill();
+    x.fillStyle = '#b45309';
+    for (let i = 0; i < 6; i++) x.fillRect(220 + i * 210, 690 + (i % 2) * 20, 90, 60);
+    return c.toDataURL('image/jpeg', 0.9).split(',')[1];
+  });
+  fs.writeFileSync(file, Buffer.from(b64, 'base64'));
+}
 async function pickCard(page, name) {
   // Top edge, away from the ⋯ button (top-left) and the branch toggle (top-right) of a selected card.
   await card(page, name).locator('.card-bg').click({ position: { x: 70, y: 12 }, force: true });
@@ -111,7 +140,7 @@ async function makeAvatar(page, file) {
 {
   const { ctx, page } = await newPage();
   await shot(page, '01-ikhtisar', [
-    { loc: tid(page, 'sidebar'), n: 1 },
+    { loc: tid(page, 'editor-popup'), n: 1 },
     { loc: tid(page, 'btn-open'), n: 2 },
     { loc: tid(page, 'btn-save'), n: 3 },
     { loc: tid(page, 'btn-export'), n: 4 },
@@ -162,8 +191,7 @@ async function makeAvatar(page, file) {
 
   // Add relatives
   await tid(page, 'add-partner').click();
-  await page.waitForTimeout(400);
-  await pickCard(page, 'Dimas');
+  await page.waitForTimeout(900); // the new partner is selected and its pop-up opens beside it
   await shot(page, '05-tambah-kerabat', [
     { loc: tid(page, 'add-parents'), n: 1 },
     { loc: tid(page, 'add-sibling'), n: 2 },
@@ -171,6 +199,7 @@ async function makeAvatar(page, file) {
     { loc: tid(page, 'add-child'), n: 4 },
     { loc: card(page, 'Pasangan dari Dimas'), n: 5 },
   ]);
+  await pickCard(page, 'Dimas');
   await tid(page, 'add-child').click();
   await shot(page, '06-dialog-anak', [
     { loc: page.locator('.choice').nth(0), n: 1 },
@@ -355,8 +384,9 @@ async function makeAvatar(page, file) {
   // Bahasa Jawa
   await tid(page, 'btn-settings').click();
   await tid(page, 'settings-menu').getByTestId('lang-select').selectOption('jv');
-  await page.waitForTimeout(500);
-  await shot(page, '23-bahasa-jawa', [{ loc: tid(page, 'settings-menu').getByTestId('lang-select'), n: 1 }, { loc: tid(page, 'btn-open'), n: 2 }, { loc: tid(page, 'sidebar'), n: 3 }]);
+  await page.keyboard.press('Escape'); // close the settings so the editor pop-up shows
+  await page.waitForTimeout(3500); // let the export toasts fade
+  await shot(page, '23-bahasa-jawa', [{ loc: tid(page, 'btn-settings'), n: 1 }, { loc: tid(page, 'btn-open'), n: 2 }, { loc: tid(page, 'editor-popup'), n: 3 }]);
   await ctx.close();
 }
 
@@ -379,10 +409,80 @@ async function makeAvatar(page, file) {
   ]);
   await page.keyboard.press('Escape');
   await tid(page, 'tree-canvas').focus();
-  await page.keyboard.press('?');
+  await page.keyboard.press('Control+h');
   await tid(page, 'shortcuts-dialog').waitFor();
   await page.waitForTimeout(250);
-  await shot(page, '30-pintasan', [{ loc: tid(page, 'shortcuts-dialog'), n: 1 }]);
+  await shot(page, '30-pintasan', [
+    { loc: tid(page, 'shortcuts-filter'), n: 1 },
+    { loc: tid(page, 'shortcut-group-file'), n: 2, pos: 'tr' },
+    { loc: tid(page, 'shortcut-edit'), n: 3, pos: 'tr' },
+  ]);
+  await page.keyboard.press('Escape');
+
+  // The editor pop-up beside the selected card, the unsaved-changes prompt and the pinned panel.
+  await tid(page, 'btn-center').click();
+  await page.waitForTimeout(700);
+  await pickCard(page, 'Bambang');
+  await page.waitForTimeout(600);
+  await shot(page, '31-popup-penyunting', [
+    { loc: card(page, 'Bambang'), n: 1 },
+    { loc: tid(page, 'editor-popup'), n: 2, pos: 'tl' },
+    { loc: tid(page, 'editor-pin'), n: 3 },
+    { loc: tid(page, 'editor-close'), n: 4, pos: 'tr' },
+  ]);
+  await tid(page, 'editor-popup').getByTestId('edit-person').click();
+  await tid(page, 'f-given').fill('Bambang Santoso');
+  await page.keyboard.press('Escape');
+  await tid(page, 'unsaved-dialog').waitFor();
+  await page.waitForTimeout(250);
+  await shot(page, '33-konfirmasi-perubahan', [
+    { loc: tid(page, 'unsaved-save'), n: 1 },
+    { loc: tid(page, 'unsaved-discard'), n: 2 },
+    { loc: tid(page, 'unsaved-cancel'), n: 3 },
+  ]);
+  await tid(page, 'unsaved-discard').click();
+  await pickCard(page, 'Bambang');
+  await tid(page, 'editor-pin').click();
+  await page.waitForTimeout(700);
+  await shot(page, '32-panel-tersemat', [
+    { loc: tid(page, 'editor-panel'), n: 1, pos: 'tc' },
+    { loc: tid(page, 'panel-resizer'), n: 2, outline: false },
+    { loc: tid(page, 'editor-unpin'), n: 3 },
+  ]);
+  await tid(page, 'editor-unpin').click();
+  await page.waitForTimeout(400);
+
+  // Canvas backgrounds: plain colour, pattern, picture.
+  await tid(page, 'btn-settings').click();
+  await tid(page, 'bg-kind-solid').click();
+  await tid(page, 'bg-swatch-sogan').click();
+  await page.waitForTimeout(400);
+  await shot(page, '34-latar-polos', [
+    { loc: tid(page, 'bg-kind-solid'), n: 1 },
+    { loc: tid(page, 'bg-swatch-sogan'), n: 2 },
+    { loc: tid(page, 'bg-custom'), n: 3, pos: 'tr' },
+    { loc: tid(page, 'bg-reset'), n: 4 },
+  ]);
+  await tid(page, 'bg-kind-tiles').click();
+  await tid(page, 'bg-motif-kawung').click();
+  await page.waitForTimeout(400);
+  await shot(page, '35-latar-motif', [
+    { loc: tid(page, 'bg-motif-kawung'), n: 1 },
+    { loc: tid(page, 'bg-scale'), n: 2 },
+    { loc: tid(page, 'bg-motif-color'), n: 3, pos: 'tr' },
+  ]);
+  await tid(page, 'bg-kind-image').click();
+  const landscape = path.join(DEMO, 'latar-contoh.jpg');
+  await makeLandscape(page, landscape);
+  await tid(page, 'bg-image-input').setInputFiles(landscape);
+  await tid(page, 'bg-fit-cover').waitFor();
+  await page.waitForTimeout(600);
+  await shot(page, '36-latar-gambar', [
+    { loc: tid(page, 'bg-fit-cover'), n: 1 },
+    { loc: tid(page, 'bg-fade'), n: 2 },
+    { loc: tid(page, 'bg-blur'), n: 3 },
+    { loc: tid(page, 'bg-motion-fixed'), n: 4 },
+  ]);
   await ctx.close();
 }
 
@@ -442,6 +542,16 @@ async function makeAvatar(page, file) {
     { loc: tid(page, 'sheet-drag'), n: 2 },
     { loc: tid(page, 'add-child'), n: 3 },
   ]);
+  // Camera on the phone: the Image tab offers the device camera next to the gallery.
+  await tid(page, 'tab-image').tap();
+  await tid(page, 'camera-image').waitFor({ state: 'attached' });
+  await page.locator('label', { has: tid(page, 'camera-image') }).scrollIntoViewIfNeeded();
+  await page.waitForTimeout(500);
+  await shot(page, '37-mobile-kamera', [
+    { loc: page.locator('label', { has: tid(page, 'camera-image') }), n: 1 },
+    { loc: page.locator('label', { has: tid(page, 'upload-image') }), n: 2 },
+  ]);
+  await tid(page, 'tab-personal').tap();
   // Long-press a card for its action menu.
   const bg = card(page, 'Dimas').locator('.card-bg');
   const b = await bg.boundingBox();
@@ -456,4 +566,8 @@ async function makeAvatar(page, file) {
 }
 
 await browser.close();
+if (missing) {
+  console.error(`${missing} marker(s) had no element to point at`);
+  process.exit(1);
+}
 console.log('done');

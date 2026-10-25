@@ -48,7 +48,7 @@ Aplikasi dibuka dengan pohon awal tiga orang (saya, ayah, ibu) dan "Saya" sudah 
 
 | No | Bagian | Fungsi |
 |---|---|---|
-| 1 | **Panel editor** (kiri) | Menampilkan data orang terpilih, tombol **Ubah data**, **Tambah kerabat**, dan **Hapus orang**. Tombol yang tidak bisa dipakai menuliskan alasannya (mis. *Orang tua sudah ada*). Lebar panel bisa diubah dengan menyeret tepi kanannya, dan aplikasi mengingatnya. Di tablet panel menjadi laci di atas kanvas; di ponsel menjadi lembar bawah (bagian 13). |
+| 1 | **Pop-up penyunting** | Terbuka di samping kartu orang terpilih dan berisi datanya, tombol **Ubah data**, **Tambah kerabat**, dan **Hapus orang**. Tombol yang tidak bisa dipakai menuliskan alasannya (mis. *Orang tua sudah ada*). Kanvas tetap bisa diklik dan digeser selama pop-up terbuka. Pop-up bisa **disematkan** menjadi panel tetap di kanan (bagian 3). Di tablet penyunting menjadi laci di kiri; di ponsel menjadi lembar bawah (bagian 13). |
 | 2 | **Buka** | Membuka/mengimpor `.sambung`, `.ged`, atau `.zip`; menautkan folder foto. |
 | 3 | **Simpan** (Ctrl+S) | Mengunduh file `.sambung` yang bisa dibuka ulang. |
 | 4 | **Ekspor** | PNG, JPEG, SVG, GEDCOM, dan dokumen silsilah teks. |
@@ -56,11 +56,13 @@ Aplikasi dibuka dengan pohon awal tiga orang (saya, ayah, ibu) dan "Saya" sudah 
 | 6 | **Generasi ▲/▼** | Berapa generasi leluhur (▲) dan keturunan (▼) yang ditampilkan. |
 | 7 | **Pengaturan pohon** | Format tanggal, ukuran huruf, kolom kartu, tema, bahasa. |
 | 8 | **Tata letak manual** | Menggeser kartu dan garis secara manual. |
-| 9 | **Kartu orang** | Klik/ketuk untuk memilih; klik ganda untuk langsung mengubah data. **Klik kanan** (atau **tekan lama** di layar sentuh, atau tombol **⋯** di sudut kartu terpilih) membuka menu aksi (bagian 4). Kartu terpilih diberi sorotan hijau, dan garis keturunannya ikut menyala. Cincin foto: **biru = laki-laki, magenta = perempuan, ungu putus-putus = lainnya**. |
+| 9 | **Kartu orang** | Klik/ketuk untuk memilih; klik ganda untuk langsung mengubah data. **Klik kanan** (atau **tekan lama** di layar sentuh, atau tombol **⋯** di sudut kartu terpilih) membuka menu aksi (bagian 4). Kartu terpilih diberi sorotan **nila**, dan garis keturunannya ikut menyala; hasil pencarian diberi bingkai **sogan** (cokelat keemasan). Cincin foto: **biru = laki-laki, magenta = perempuan, teal putus-putus = lainnya**. |
 | 10 | **Kontrol kanvas** | Pusatkan pohon, perbesar, perkecil. Roda mouse, seret, dan cubit (pinch) juga bekerja. |
 | 11 | **Panduan (?)** | Membuka panduan ini di GitHub (butuh internet; aplikasi sendiri tetap berjalan luring). |
 
-Arahkan mouse ke tombol ikon untuk melihat namanya beserta pintasan keyboard-nya. Tekan **?** untuk daftar semua pintasan (bagian 8).
+Arahkan mouse ke tombol ikon untuk melihat namanya beserta pintasan keyboard-nya. Tekan **Ctrl+H** (atau **F1** / **?**) untuk daftar semua pintasan (bagian 8).
+
+Warna aplikasi bertema **Nila & Sogan**: nila (biru keunguan dari pewarna alam batik) untuk tombol utama, pilihan aktif, dan sorotan; sogan (cokelat keemasan batik Solo/Yogya) untuk hal yang perlu perhatian, seperti hasil pencarian dan penanda *belum disimpan*. Ikon tombol yang sedang aktif (mis. pencarian terbuka, tata letak manual menyala) tampil terisi penuh.
 
 Di bagian bawah kiri kanvas ada keterangan **"3/3 tampil"** (jumlah orang yang terlihat dari seluruh pohon), orang fokus, legenda warna cincin, dan persentase zoom.
 
@@ -71,10 +73,39 @@ Di bagian bawah kiri kanvas ada keterangan **"3/3 tampil"** (jumlah orang yang t
 **Tujuan:** mengisi nama, tanggal lahir, tempat, pekerjaan, dan catatan.
 
 **Langkah**
-1. Klik kartu orang yang ingin diubah.
-2. Tekan **Ubah data** di panel kiri.
-3. Isi tab **Pribadi**, lalu pindah ke tab **Biografi**.
-4. Tekan **Simpan** (atau **Batal** untuk membuang perubahan).
+1. Klik kartu orang yang ingin diubah. Pop-up penyunting terbuka di samping kartu itu.
+2. Tekan **Ubah data** di pop-up (atau tekan **Enter** / **E**, atau klik ganda kartunya).
+3. Isi tab **Pribadi**, lalu pindah ke tab **Biografi** (**Alt+1 / Alt+2 / Alt+3** berpindah tab).
+4. Tekan **Simpan** atau **Ctrl+Enter** dari kolom mana pun (atau **Batal** untuk membuang perubahan).
+
+### Pop-up penyunting dan panel tersemat
+
+![Pop-up penyunting di samping kartu](img/31-popup-penyunting.png)
+
+| No | Keterangan |
+|---|---|
+| 1 | Kartu orang terpilih. Pop-up tidak pernah menutupinya. |
+| 2 | **Pop-up penyunting**: memilih sisi yang lapang (kanan, kiri, bawah, atau atas kartu), ikut bergeser saat kanvas digeser atau di-zoom, dan tersembunyi saat kartunya keluar layar. Klik kartu lain memindahkannya; klik bagian kosong kanvas menutupnya. Tombol panah tetap memindahkan pilihan, dan pop-up mengikuti. |
+| 3 | **Sematkan**: mengubah pop-up menjadi panel tetap di kanan (gambar berikut). |
+| 4 | **Tutup** (atau **Esc**). Fokus keyboard kembali ke kanvas. |
+
+![Panel tersemat di kanan](img/32-panel-tersemat.png)
+
+| No | Keterangan |
+|---|---|
+| 1 | **Panel tersemat** di kanan untuk sesi pengisian data yang panjang. Kanvas menyempit di sampingnya, jadi kartu tidak tertutup. Memilih orang lain hanya mengganti isinya. |
+| 2 | Seret tepi kiri panel (atau fokuskan lalu pakai panah) untuk mengubah lebarnya. |
+| 3 | **Lepas sematan**: kembali ke pop-up. Status sematan dan lebar panel diingat untuk kunjungan berikutnya. |
+
+Bila Anda menutup penyunting atau memilih orang lain saat form berisi perubahan yang belum disimpan, aplikasi bertanya dulu:
+
+![Konfirmasi perubahan belum disimpan](img/33-konfirmasi-perubahan.png)
+
+| No | Pilihan | Arti |
+|---|---|---|
+| 1 | **Simpan** | Menyimpan perubahan, lalu lanjut. |
+| 2 | **Buang** | Membuang perubahan, lalu lanjut. |
+| 3 | **Batal** | Tetap di form; isian tidak hilang. |
 
 ### Tab Pribadi
 
@@ -108,7 +139,7 @@ Di bagian bawah kiri kanvas ada keterangan **"3/3 tampil"** (jumlah orang yang t
 
 | No | Keterangan |
 |---|---|
-| 1 | Nama di kepala panel berubah. |
+| 1 | Nama di kepala pop-up berubah. |
 | 2 | Tabel **Personal** menampilkan data baru. Tanggal ditulis sesuai *Format tanggal* di Pengaturan pohon. |
 | 3 | Kartu di kanvas ikut diperbarui. |
 
@@ -120,15 +151,15 @@ Di bagian bawah kiri kanvas ada keterangan **"3/3 tampil"** (jumlah orang yang t
 
 ![Tombol Tambah kerabat](img/05-tambah-kerabat.png)
 
-Pilih seseorang, lalu gunakan tombol di bagian **Tambah kerabat**.
+Pilih seseorang, lalu gunakan tombol di bagian **Tambah kerabat** (atau huruf pintasannya saat fokus di pohon).
 
-| No | Tombol | Hasil |
-|---|---|---|
-| 1 | **Tambah orang tua** | Membuat ayah dan ibu baru ("Ayah dari …", "Ibu dari …"). **Nonaktif** bila orang itu sudah punya orang tua. |
-| 2 | **Tambah saudara** | Menambah saudara kandung di keluarga orang tua yang sama. Bila orang tua belum ada, keduanya dibuat otomatis. |
-| 3 | **Tambah pasangan** | Menambah pasangan berjenis kelamin berlawanan, ditempatkan di samping. Maksimal 20 pasangan per orang. |
-| 4 | **Tambah anak** | Membuka dialog pilihan (di bawah). |
-| 5 | Orang baru langsung terpilih dan kanvas berpindah ke sana. Contoh: "Pasangan dari Dimas". |
+| No | Tombol | Pintasan | Hasil |
+|---|---|---|---|
+| 1 | **Tambah orang tua** | **P** | Membuat ayah dan ibu baru ("Ayah dari …", "Ibu dari …"). **Nonaktif** bila orang itu sudah punya orang tua; lewat pintasan, alasannya muncul sebagai pemberitahuan singkat. |
+| 2 | **Tambah saudara** | **S** | Menambah saudara kandung di keluarga orang tua yang sama. Bila orang tua belum ada, keduanya dibuat otomatis. |
+| 3 | **Tambah pasangan** | **A** | Menambah pasangan berjenis kelamin berlawanan, ditempatkan di samping. Maksimal 20 pasangan per orang. |
+| 4 | **Tambah anak** | **C** | Membuka dialog pilihan (di bawah). |
+| 5 | | | Orang baru langsung terpilih, pop-up pindah ke kartunya, dan kanvas berpindah ke sana. Contoh: "Pasangan dari Dimas". |
 
 Setelah menambah, ubah nama dan datanya dengan **Ubah data** (bagian 3).
 
@@ -141,7 +172,7 @@ Semua aksi di atas juga tersedia langsung dari pohon, tanpa ke panel.
 | No | Keterangan |
 |---|---|
 | 1 | Tombol **⋯** di sudut kartu terpilih. Bisa juga **klik kanan** kartu mana pun, atau **tekan lama** di layar sentuh. |
-| 2 | Pilih aksi, mis. **Tambah anak**. Aksi yang tidak tersedia tetap tercantum beserta alasannya. |
+| 2 | Pilih aksi, mis. **Tambah anak**. Aksi yang tidak tersedia tetap tercantum beserta alasannya. Di sisi kanan tiap item tertulis pintasannya, sehingga Anda bisa belajar sambil bekerja. |
 | 3 | **Hapus orang** dipisahkan di bagian bawah. |
 
 ### Salah langkah? Urungkan
@@ -171,10 +202,10 @@ Setiap perubahan pada isi pohon bisa diurungkan: **Ctrl+Z** untuk urungkan dan *
 ## 5. Foto
 
 **Langkah**
-1. Pilih orang, buka tab **Gambar**.
-2. Tekan **Unggah gambar** dan pilih file (JPEG, PNG, WebP, atau HEIC bila didukung browser; maksimal 25 MB).
+1. Pilih orang, buka tab **Gambar** (atau tekan **I**, atau pilih **Unggah foto** di menu aksi kartu).
+2. Tekan **Unggah gambar** dan pilih file (JPEG, PNG, WebP, atau HEIC bila didukung browser; maksimal 25 MB). Foto besar diperkecil otomatis dulu.
 3. Geser gambar dan atur **Perbesaran** sampai wajah berada di tengah lingkaran.
-4. Tekan **Pakai foto**.
+4. Tekan **Pakai foto**. Pemberitahuan dengan tombol **Urungkan** (atau **Ctrl+Z**) mengembalikan foto lama.
 
 ![Dialog potong foto](img/08-potong-foto.png)
 
@@ -190,6 +221,19 @@ Setiap perubahan pada isi pohon bisa diurungkan: **Ctrl+Z** untuk urungkan dan *
 |---|---|
 | 1 | Foto tampil di dalam cincin berwarna jenis kelamin. Tanpa foto, kartu menampilkan inisial. |
 | 2 | **Hapus gambar** (dengan konfirmasi). **Ganti gambar** muncul menggantikan tombol Unggah. |
+
+### Memotret langsung di ponsel
+
+Di layar sentuh, tab **Gambar** punya dua tombol. Hasilnya masuk ke dialog potong yang sama.
+
+![Tombol kamera di ponsel](img/37-mobile-kamera.png)
+
+| No | Keterangan |
+|---|---|
+| 1 | **Ambil foto** membuka aplikasi kamera perangkat dengan kamera belakang (cocok untuk memotret foto cetak lama); kamera depan tetap bisa dipilih di aplikasi kamera. Menu aksi kartu juga punya **Ambil foto**. |
+| 2 | **Pilih dari galeri** untuk foto yang sudah ada. |
+
+Foto tidak pernah dikirim ke mana pun; pemotretan juga berjalan tanpa internet. Membatalkan dialog potong tidak mengubah foto lama.
 
 ---
 
@@ -245,7 +289,7 @@ Pilih `keluarga-contoh.ged` (ada di `docs/demo`). Aplikasi menampilkan **laporan
 | No | Keterangan |
 |---|---|
 | 1 | Generasi paling atas (Hadi dan Sumiati). Tanda † pada cincin menandakan telah wafat. |
-| 2 | **Orang terpilih** (Dimas): kartunya disorot dan garis ke leluhur serta keturunannya menyala hijau. |
+| 2 | **Orang terpilih** (Dimas): kartunya disorot dan garis ke leluhur serta keturunannya menyala nila. |
 | 3 | Keturunan di generasi paling bawah. |
 | 4 | Penghitung: **14/14 tampil** (semua orang terlihat) dan fokus saat ini. |
 
@@ -273,15 +317,47 @@ Pengaturan yang sama berlaku untuk **ekspor** bila Anda memilih *Tampilan saat i
 
 ### Pintasan keyboard
 
-Tekan **?** kapan saja untuk melihat daftar ini dalam bahasa yang dipilih.
+Tekan **Ctrl+H** kapan saja untuk melihat daftar pintasan dalam bahasa yang dipilih. **F1** dan **?** membuka daftar yang sama. Di Mac, semua pintasan Ctrl juga bekerja dengan **⌘** dan ditampilkan sebagai ⌘.
 
-![Pintasan keyboard](img/30-pintasan.png)
+![Daftar pintasan keyboard](img/30-pintasan.png)
 
-Saat fokus ada di pohon (klik bagian kosong kanvas, atau tekan Tab sampai kanvas bergaris hijau), **tombol panah** memindahkan pilihan ke orang tua (↑), anak (↓), atau saudara/pasangan (← →). **Enter** membuka *Ubah data*, **Delete** menghapus (dengan konfirmasi), **+ / − / 0** memperbesar, memperkecil, dan memuatkan pohon. Pintasan tidak aktif saat Anda sedang mengetik di kolom isian.
+| No | Keterangan |
+|---|---|
+| 1 | **Kotak saring**: ketik kata (mis. `generasi`) atau tombol (mis. `ctrl+o`) untuk menyaring baris. |
+| 2 | Pintasan dikelompokkan: **Berkas, Navigasi, Orang, Tampilan, Riwayat, Bantuan**. |
+| 3 | Satu aksi bisa punya beberapa tombol, mis. **Enter / E** untuk *Ubah data*. |
+
+Saat fokus ada di pohon (klik bagian kosong kanvas, atau tekan Tab sampai kanvas bergaris nila) atau di penyunting:
+
+| Pintasan | Aksi |
+|---|---|
+| **Ctrl+H**, **F1**, **?** | Daftar pintasan |
+| **Ctrl+O** / **Ctrl+S** / **Ctrl+E** | Buka / Simpan / Ekspor |
+| **Ctrl+F** atau **Ctrl+K** | Cari orang |
+| **↑ ↓ ← →** | Pilih orang tua, anak, saudara/pasangan |
+| **Home** | Pilih orang fokus |
+| **[** / **]** | Orang sebelumnya / berikutnya menurut urutan daftar orang di berkas |
+| **Enter** atau **E** | Ubah data orang terpilih |
+| **P** / **S** / **A** / **C** | Tambah orang tua / saudara / pasangan / anak |
+| **F** | Tampilkan pohon dari orang ini |
+| **I** | Ambil atau unggah foto |
+| **Delete** | Hapus orang terpilih (dengan konfirmasi) |
+| **Alt+1** / **Alt+2** / **Alt+3** | Tab Pribadi / Biografi / Gambar |
+| **Ctrl+Enter** | Simpan form ubah data dari kolom mana pun |
+| **+** / **−** / **0** | Perbesar / perkecil / muatkan pohon |
+| **Ctrl+,** | Pengaturan pohon |
+| **Ctrl+Shift+L** | Ganti tema terang/gelap |
+| **M** | Tata letak manual nyala/mati |
+| **Ctrl+↑** / **Ctrl+↓** | Tambah / kurangi satu generasi leluhur |
+| **Ctrl+Shift+↑** / **Ctrl+Shift+↓** | Tambah / kurangi satu generasi keturunan |
+| **Ctrl+Z** / **Ctrl+Shift+Z** (Ctrl+Y) | Urungkan / ulangi |
+| **Esc** | Tutup menu, pop-up, atau sorotan pencarian |
+
+Huruf tunggal berasal dari kata bahasa Inggris (**P**arents, **S**ibling, p**A**rtner, **C**hild, **E**dit, **F**ocus, **I**mage, **M**anual), jadi sama di semua bahasa. Pintasan tidak aktif saat Anda sedang mengetik di kolom isian, dan tidak bekerja di belakang dialog yang terbuka. Aksi yang tidak tersedia memunculkan pemberitahuan berisi alasannya.
 
 ### Mencari orang
 
-Tekan ikon kaca pembesar atau **Ctrl+F**.
+Tekan ikon kaca pembesar, **Ctrl+F**, atau **Ctrl+K**.
 
 ![Panel pencarian](img/15-pencarian.png)
 
@@ -298,7 +374,7 @@ Memilih hasil memusatkan kanvas pada orang itu. Bila orang tersebut berada di lu
 | No | Keterangan |
 |---|---|
 | 1 | Kartu hasil pencarian (Naura) dipusatkan dan diberi warna sorotan. |
-| 2 | Datanya langsung terbuka di panel kiri. **Esc** menghapus sorotan pencarian. |
+| 2 | Datanya langsung terbuka di pop-up penyunting di sampingnya. **Esc** menghapus sorotan pencarian. |
 
 ---
 
@@ -319,6 +395,38 @@ Tekan ikon **Pengaturan pohon** (geser-geser).
 | 7 | **Animasikan garis keturunan terpilih** | Garis ke leluhur dan keturunan orang terpilih bergerak pelan (otomatis mati bila sistem meminta *reduced motion*). |
 
 Di dalam menu ini juga ada kontrol **Generasi**, selain di toolbar. Pengaturan disimpan bersama pohon.
+
+### Latar kanvas
+
+Bagian **Latar kanvas** di Pengaturan pohon mengganti latar di belakang kartu: **Kisi** (bawaan), **Polos**, **Motif**, atau **Gambar**. Perubahan langsung terlihat di kanvas, bisa diurungkan dengan **Ctrl+Z**, disimpan bersama pohon (ikut di berkas `.sambung`, termasuk gambarnya), dan bisa ikut diekspor. Garis keluarga dan bayangan kartu otomatis memakai warna terang atau gelap supaya tetap terlihat di latar apa pun. **Kembali ke bawaan** mengembalikan kisi.
+
+![Latar polos](img/34-latar-polos.png)
+
+| No | Keterangan |
+|---|---|
+| 1 | Pilihan **Polos**. |
+| 2 | Delapan warna siap pakai yang serasi dengan palet (di tema gelap memakai varian gelapnya), mis. *Sogan muda*. |
+| 3 | **Warna lain**: pemilih warna bebas. |
+| 4 | **Kembali ke bawaan** (kisi). |
+
+![Latar motif](img/35-latar-motif.png)
+
+| No | Keterangan |
+|---|---|
+| 1 | Enam motif ubin: **Titik**, **Garis miring**, **Heksagon**, serta tafsiran geometris sederhana atas batik **Kawung**, **Parang**, dan **Truntum**. Contoh kecil di tiap tombol memperlihatkan polanya. |
+| 2 | **Skala** 50–200 %. |
+| 3 | **Warna motif**; *Warna bawaan* kembali ke warna halus yang menyesuaikan tema. |
+
+![Latar gambar](img/36-latar-gambar.png)
+
+Pilih **Gambar**, lalu **Unggah gambar** (di ponsel: **Ambil foto** atau **Pilih dari galeri**), misalnya foto rumah atau kampung halaman. Gambar diperkecil otomatis (sisi terpanjang ±2560 px) supaya berkas tidak membengkak.
+
+| No | Keterangan |
+|---|---|
+| 1 | **Penempatan**: **Penuhi** (menutup seluruh kanvas), **Muat** (seluruh gambar terlihat), atau **Ubin** (diulang). |
+| 2 | **Pudar** 0–90 % (bawaan 70 %): lapisan warna tema di atas gambar supaya kartu tetap terbaca. |
+| 3 | **Buram** 0–12 px. |
+| 4 | Saat pohon digeser, gambar **Diam di tempat** atau **Ikut bergeser**. |
 
 ### Tema gelap
 
@@ -359,7 +467,7 @@ Susunan kartu dihitung otomatis. Bila ingin menyesuaikan:
 | 3 | **Simpan**: nonaktif sampai ada perubahan. |
 | 4 | **Batal**: kembali ke posisi sebelumnya. |
 
-Panel editor disembunyikan selama mode ini supaya tidak ada perubahan data yang bercampur. **Atur ulang tata letak manual** (di bilah atas) menghapus semua penyesuaian. Penyesuaian disimpan sebagai *selisih dari tata letak otomatis*, jadi tetap berlaku ketika Anda menambah orang kemudian.
+Tombol **M** menyalakan atau mematikan mode ini saat fokus di pohon. Pop-up penyunting ditutup selama mode ini supaya pegangan geser tidak tertutup dan tidak ada perubahan data yang bercampur. **Atur ulang tata letak manual** (di bilah atas) menghapus semua penyesuaian. Penyesuaian disimpan sebagai *selisih dari tata letak otomatis*, jadi tetap berlaku ketika Anda menambah orang kemudian.
 
 ---
 
@@ -393,7 +501,7 @@ Tekan **Ekspor**.
 | 5 | **Rincian kartu** (untuk gambar) | **Ringkas / Normal / Rinci** (lihat di bawah). |
 | 6 | **Ekspor** | Mengunduh file. |
 
-Pengaturan gambar lain: **Latar** (Kisi, Putih, Transparan; JPEG selalu padat), **Resolusi** 1×–3× (otomatis diturunkan bila melebihi batas kanvas browser), dan **legenda jenis kelamin**.
+Pengaturan gambar lain: **Latar** (**Ikuti latar kanvas** sebagai bawaan, termasuk warna, motif, atau gambar latar; **Putih**; atau **Transparan**, yang pada JPEG menjadi putih), **Resolusi** 1×–3× (otomatis diturunkan bila melebihi batas kanvas browser), dan **legenda jenis kelamin**.
 
 #### PNG: Ringkas, Normal, Rinci
 
@@ -426,9 +534,9 @@ Bahasa bawaan adalah **Indonesia**. Pilih **Basa Jawa** atau **English** di *Pen
 
 | No | Keterangan |
 |---|---|
-| 1 | Pemilih bahasa. Pilihan diingat untuk kunjungan berikutnya. |
+| 1 | **Pengaturan pohon**, tempat pemilih **Bahasa** berada. Pilihan diingat untuk kunjungan berikutnya. |
 | 2 | Seluruh label berganti: **Bukak**, **Simpen**, **Ekspor**. |
-| 3 | Panel editor, pesan, nama otomatis ("Bapakné …", "Bojoné …"), nama bulan, dan teks dokumen silsilah mengikuti bahasa yang dipilih. |
+| 3 | Penyunting, pesan, nama otomatis ("Bapakné …", "Bojoné …"), nama bulan, dan teks dokumen silsilah mengikuti bahasa yang dipilih. |
 
 Bahasa hanya mengubah tampilan; data keluarga Anda tidak berubah.
 
@@ -442,7 +550,7 @@ Pada layar sempit (≤760 px) tampilan menyesuaikan diri: panel editor menjadi *
 
 | No | Keterangan |
 |---|---|
-| 1 | **Buka**, **Simpan**, **Ekspor**, **Cari**, **Pengaturan**, dan **⋯** selalu terlihat di bilah atas. Titik pada tombol Simpan menunjukkan status: hijau = tersimpan, jingga = ada perubahan yang belum disimpan ke file. |
+| 1 | **Buka**, **Simpan**, **Ekspor**, **Cari**, **Pengaturan**, dan **⋯** selalu terlihat di bilah atas. Titik pada tombol Simpan menunjukkan status: nila = tersimpan, sogan (cokelat keemasan) = ada perubahan yang belum disimpan ke file. |
 | 2 | Menu **⋯** (gambar di bawah). |
 | 3 | Bilah lembar penyunting berisi nama orang terpilih. Ketuk atau seret ke atas untuk membukanya. |
 | 4 | Pusatkan, perbesar, perkecil. Cubit dengan dua jari untuk zoom, atau **ketuk dua kali** untuk memperbesar di titik itu. |
@@ -480,7 +588,7 @@ Pada layar sempit (≤760 px) tampilan menyesuaikan diri: panel editor menjadi *
 ### Memasang dan memakai tanpa internet
 
 1. Buka aplikasi sekali saat online. Service worker menyimpan semua file aplikasi.
-2. Pasang (bagian 1). Aplikasi muncul di daftar program/layar utama dan terbuka tanpa bilah alamat.
+2. Pasang (bagian 1). Aplikasi muncul di daftar program/layar utama dengan logo SambungDulur (anak pohon dengan dua simpul nila dan sogan) dan terbuka tanpa bilah alamat. Di Android 13 ke atas, ikonnya ikut tema ikon sistem bila diaktifkan.
 3. Setelah itu, aplikasi berjalan **tanpa internet**: buka, edit, simpan, dan ekspor semuanya terjadi di perangkat.
 
 ---
