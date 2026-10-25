@@ -1248,3 +1248,48 @@ test('the overflow menu lists shortcuts for its items and opens the shortcut lis
   await page.getByTestId('more-shortcuts').click();
   await expect(page.getByTestId('shortcuts-dialog')).toBeVisible();
 });
+
+test('new logo in the header and favicon; manifest lists 192, 512, maskable and monochrome icons', async ({ page }) => {
+  await fresh(page);
+  const logo = page.getByTestId('brand-logo');
+  await expect(logo).toBeVisible();
+  // Two joined nodes: Nila and Sogan, from the theme.
+  expect(await logo.locator('circle').evaluateAll((els) => els.map((e) => getComputedStyle(e).fill))).toEqual(['rgb(67, 56, 202)', 'rgb(180, 83, 9)']);
+  await expect(page.locator('link[rel="icon"][type="image/svg+xml"]')).toHaveAttribute('href', './icons/icon.svg');
+  await expect(page.locator('link[rel="icon"][type="image/png"]')).toHaveAttribute('href', './icons/favicon-32.png');
+
+  const manifestUrl = new URL((await page.locator('link[rel=manifest]').getAttribute('href'))!, page.url()).toString();
+  const manifest = await (await page.request.get(manifestUrl)).json();
+  const icon = (purpose: string, sizes: string) => manifest.icons.find((i: { purpose: string; sizes: string }) => i.purpose === purpose && i.sizes === sizes);
+  for (const [purpose, sizes] of [['any', '192x192'], ['any', '512x512'], ['maskable', '512x512'], ['monochrome', '512x512']]) {
+    const entry = icon(purpose, sizes);
+    expect(entry, `${purpose} ${sizes}`).toBeTruthy();
+    const res = await page.request.get(new URL(entry.src, manifestUrl).toString());
+    expect(res.ok(), entry.src).toBe(true);
+    const buf = await res.body();
+    expect([buf.readUInt32BE(16), buf.readUInt32BE(20)].join('x'), entry.src).toBe(sizes);
+  }
+  // The maskable icon keeps its whole logo inside the 80 % safe circle; the monochrome one too.
+  for (const file of ['public/icons/icon-maskable-512.png', 'public/icons/icon-monochrome-512.png']) {
+    const b64 = fs.readFileSync(file).toString('base64');
+    const outside = await page.evaluate(async (data) => {
+      const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+      const bmp = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
+      const c = new OffscreenCanvas(bmp.width, bmp.height);
+      const ctx = c.getContext('2d')!;
+      ctx.drawImage(bmp, 0, 0);
+      const { data: px, width, height } = ctx.getImageData(0, 0, bmp.width, bmp.height);
+      const bg = [px[0], px[1], px[2], px[3]];
+      const r = 0.4 * width;
+      let n = 0;
+      for (let y = 0; y < height; y++)
+        for (let x = 0; x < width; x++) {
+          const i = (y * width + x) * 4;
+          const differs = Math.abs(px[i] - bg[0]) + Math.abs(px[i + 1] - bg[1]) + Math.abs(px[i + 2] - bg[2]) + Math.abs(px[i + 3] - bg[3]) > 24;
+          if (differs && Math.hypot(x + 0.5 - width / 2, y + 0.5 - height / 2) > r) n++;
+        }
+      return n;
+    }, b64);
+    expect(outside, file).toBe(0);
+  }
+});

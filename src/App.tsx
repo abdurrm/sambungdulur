@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { unzipSync } from 'fflate';
 import { Icon, preloadIcons } from './ui/icons';
+import { Logo } from './ui/Logo';
 import type { PersonFields, TreeDoc, TreeSettings } from './model/types';
 import { DEFAULT_SETTINGS } from './model/types';
 import { createDefaultTree } from './model/defaultTree';
@@ -775,13 +776,7 @@ export default function App() {
     <div className="app">
       <header className="header">
         <div className="brand" hidden={narrow}>
-          <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
-            <rect x="1" y="1" width="30" height="30" rx="8" fill="none" stroke="var(--accent)" strokeWidth="2" />
-            <circle cx="16" cy="9" r="3.2" fill="none" stroke="var(--male)" strokeWidth="2" />
-            <circle cx="9" cy="22" r="3.2" fill="none" stroke="var(--female)" strokeWidth="2" />
-            <circle cx="23" cy="22" r="3.2" fill="none" stroke="var(--male)" strokeWidth="2" />
-            <path d="M16 12.5V16M9 18.6V16H23V18.6" fill="none" stroke="var(--dim)" strokeWidth="1.6" strokeLinecap="round" />
-          </svg>
+          <Logo size={28} />
           {!narrow && <span>SambungDulur</span>}
           <small>{t('offline')}</small>
         </div>

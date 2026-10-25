@@ -15,7 +15,7 @@ function serviceWorker(): Plugin {
     apply: 'build',
     generateBundle(_opts, bundle) {
       const assets = Object.keys(bundle).filter((f) => !f.endsWith('.map'));
-      const files = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', ...assets];
+      const files = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/icon-monochrome-512.png', 'icons/favicon-32.png', 'icons/apple-touch-icon.png', ...assets];
       const unique = [...new Set(files)];
       const version = createHash('sha256').update(unique.join('\n')).digest('hex').slice(0, 12);
       const source = `// Generated at build time. Precaches the app shell for offline use.

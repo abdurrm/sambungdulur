@@ -1,0 +1,11 @@
+{
+  "$comment": "SambungDulur logo: a sapling whose two branches end in two joined nodes (Nila and Sogan). Single source for the header (src/ui/Logo.tsx) and the icon generator (scripts/make-icons.mjs). 64-unit grid.",
+  "size": 64,
+  "center": [32, 33],
+  "stroke": 7,
+  "branches": ["M32 56V36", "M32 42C32 32 18 34 18 24", "M32 36C32 28 46 30 46 20"],
+  "nodes": [
+    { "cx": 18, "cy": 20, "r": 9, "tone": "primary" },
+    { "cx": 46, "cy": 16, "r": 9, "tone": "accent" }
+  ]
+}
