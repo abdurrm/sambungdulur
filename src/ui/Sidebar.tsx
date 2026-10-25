@@ -1,6 +1,5 @@
-import { lazy, Suspense, type ReactNode, type Ref } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type Ref } from 'react';
 import type { SheetSnap } from './sheetSnap';
-import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Pencil, Trash2, UserPlus, Users, Baby, Heart, ImagePlus, ImageMinus, Crosshair } from 'lucide-react';
 import type { Gender, PersonFields, TreeDoc } from '../model/types';
 import { buildGedcomDate, formatDate, parseSimpleDate } from '../model/dates';
@@ -37,6 +36,51 @@ interface Props {
   sheet?: SheetSnap | null;
   onSheetChange?: (snap: SheetSnap) => void;
   onEditingChange?: (editing: boolean) => void;
+  /** Desktop panel width (px). When `onResize` is set the right edge can be dragged or moved with arrow keys. */
+  width?: number;
+  onResize?: (width: number) => void;
+}
+
+export const PANEL_MIN = 280;
+export const PANEL_MAX = 560;
+export const PANEL_DEFAULT = 340;
+const clampW = (w: number) => Math.round(Math.min(PANEL_MAX, Math.max(PANEL_MIN, w)));
+
+function PanelResizer(props: { width: number; onResize: (w: number) => void }) {
+  const drag = useRef<{ x: number; w: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
+  return (
+    <div
+      className="panel-resizer"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={t('resizePanel')}
+      aria-valuemin={PANEL_MIN}
+      aria-valuemax={PANEL_MAX}
+      aria-valuenow={props.width}
+      tabIndex={0}
+      data-dragging={dragging || undefined}
+      data-testid="panel-resizer"
+      onPointerDown={(e) => {
+        drag.current = { x: e.clientX, w: props.width };
+        (e.currentTarget as Element).setPointerCapture(e.pointerId);
+        setDragging(true);
+        e.preventDefault();
+      }}
+      onPointerMove={(e) => drag.current && props.onResize(clampW(drag.current.w + e.clientX - drag.current.x))}
+      onPointerUp={() => ((drag.current = null), setDragging(false))}
+      onPointerCancel={() => ((drag.current = null), setDragging(false))}
+      onKeyDown={(e) => {
+        const step = e.shiftKey ? 40 : 16;
+        if (e.key === 'ArrowLeft') props.onResize(clampW(props.width - step));
+        else if (e.key === 'ArrowRight') props.onResize(clampW(props.width + step));
+        else if (e.key === 'Home') props.onResize(PANEL_MIN);
+        else if (e.key === 'End') props.onResize(PANEL_MAX);
+        else return;
+        e.preventDefault();
+      }}
+    />
+  );
 }
 
 const genderLabel = (g: Gender) => (g === 'female' ? t('female') : g === 'male' ? t('male') : t('other'));
@@ -390,7 +434,14 @@ export function Sidebar(props: Props) {
   }
   return (
     <>
-      <aside ref={props.asideRef} className={`sidebar${props.hidden ? ' hidden' : ''}`} data-testid="sidebar" aria-label={t('editorMenu')}>
+      <aside
+        ref={props.asideRef}
+        className={`sidebar${props.hidden ? ' hidden' : ''}`}
+        style={{ '--panel-w': `${props.width ?? PANEL_DEFAULT}px` } as CSSProperties}
+        data-testid="sidebar"
+        aria-label={t('editorMenu')}
+      >
+        {props.onResize && !props.hidden && <PanelResizer width={props.width ?? PANEL_DEFAULT} onResize={props.onResize} />}
         <button className="sidebar-grip" onClick={props.onToggleHidden} aria-label={toggleLabel}>
           {props.hidden ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           {p ? displayName(p, doc.settings) : t('editor')}
@@ -399,7 +450,7 @@ export function Sidebar(props: Props) {
       </aside>
       <button
         className="sidebar-handle hide-mobile"
-        style={{ left: props.hidden ? 0 : 340 }}
+        style={{ left: props.hidden ? 0 : (props.width ?? PANEL_DEFAULT) }}
         onClick={props.onToggleHidden}
         aria-label={toggleLabel}
         data-testid="sidebar-toggle"

@@ -18,7 +18,7 @@ import { buildSambung, isSambung, parseSambung } from './io/sambungFile';
 import { downloadBlob, safeFileName } from './io/imageExport';
 import * as store from './storage/idb';
 import { TreeCanvas, ZOOM_MAX, ZOOM_MIN, type CanvasApi, type CanvasInset } from './ui/TreeCanvas';
-import { Sidebar } from './ui/Sidebar';
+import { PANEL_DEFAULT, Sidebar } from './ui/Sidebar';
 import { SHEET_BAR_PX, type SheetSnap } from './ui/sheetSnap';
 import { useBackToClose } from './ui/backToClose';
 import { Toast } from './ui/Toast';
@@ -69,6 +69,7 @@ type Dialog =
   | { kind: 'open' };
 
 const MANUAL_INFO_KEY = 'sambungdulur.manualInfoSeen';
+const PANEL_KEY = 'sambungdulur.panel';
 const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
 
 async function initSql() {
@@ -121,7 +122,24 @@ export default function App() {
     document.documentElement.dataset.layout = viewport.layout;
     document.documentElement.dataset.pointer = viewport.pointer;
   }, [viewport.layout, viewport.pointer]);
-  const [sidebarHidden, setSidebarHidden] = useState(() => getViewport().layout === 'narrow');
+  // Editor panel: on desktop its width and open state are remembered; on tablets it is a drawer that
+  // starts closed and opens when a person is picked.
+  const [panel, setPanel] = useState<{ width: number; hidden: boolean }>(() => {
+    try {
+      const v = JSON.parse(localStorage.getItem(PANEL_KEY) ?? 'null');
+      if (v && typeof v.width === 'number') return { width: v.width, hidden: !!v.hidden };
+    } catch {
+      /* ignore */
+    }
+    return { width: PANEL_DEFAULT, hidden: false };
+  });
+  useEffect(() => localStorage.setItem(PANEL_KEY, JSON.stringify(panel)), [panel]);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const sidebarHidden = viewport.layout === 'medium' ? !drawerOpen : panel.hidden;
+  const setSidebarHidden = (hidden: boolean) => {
+    if (getViewport().layout === 'medium') setDrawerOpen(!hidden);
+    else setPanel((p) => ({ ...p, hidden }));
+  };
   const [popover, setPopover] = useState<null | 'settings' | 'search' | 'more'>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [manualMode, setManualMode] = useState(false);
@@ -144,8 +162,11 @@ export default function App() {
   }, []);
   const sheetSnap: SheetSnap = manualMode ? 'bar' : sheet;
   const inset = useMemo<CanvasInset>(
-    () => (narrow ? { left: 0, bottom: sheetSnap === 'bar' ? SHEET_BAR_PX : sheetSnap === 'half' ? Math.round(viewH * 0.5) : viewH } : { left: 0, bottom: 0 }),
-    [narrow, sheetSnap, viewH],
+    () =>
+      narrow
+        ? { left: 0, bottom: sheetSnap === 'bar' ? SHEET_BAR_PX : sheetSnap === 'half' ? Math.round(viewH * 0.5) : viewH }
+        : { left: viewport.layout === 'medium' && drawerOpen && !manualMode ? panel.width : 0, bottom: 0 },
+    [narrow, sheetSnap, viewH, viewport.layout, drawerOpen, manualMode, panel.width],
   );
   useBackToClose(narrow && sheetSnap === 'full', () => setSheet('half'));
   // Dialogs on phones also close with the back button.
@@ -592,6 +613,7 @@ export default function App() {
                   canvas.current?.centerOn(id, 1);
                 } else focusOn(id);
                 if (narrow) setSheet('half');
+                else if (viewport.layout === 'medium') setDrawerOpen(true);
               }}
             />
           </ToolPopover>
@@ -670,6 +692,8 @@ export default function App() {
           selectedId={selectedId}
           hidden={sidebarHidden || manualMode}
           onToggleHidden={() => setSidebarHidden(!sidebarHidden)}
+          width={panel.width}
+          onResize={wide ? (width) => setPanel((p) => ({ ...p, width })) : undefined}
           mediaUrl={mediaUrl}
           manualMode={manualMode}
           sheet={narrow ? sheetSnap : null}
@@ -708,6 +732,7 @@ export default function App() {
           onSelect={(id) => {
             setSelectedId(id);
             if (narrow) setSheet(id ? 'half' : 'bar');
+            else if (viewport.layout === 'medium') setDrawerOpen(!!id);
           }}
           onAction={onCardAction}
           onDragPerson={(id, delta, done) => {
@@ -866,6 +891,7 @@ export default function App() {
         onEscape={() => {
           // An open dialog owns Escape (Base UI closes it); don't also close popovers behind it.
           if (dialog) return;
+          if (viewport.layout === 'medium' && drawerOpen && !popover) setDrawerOpen(false);
           setPopover(null);
           setMatches(new Set());
         }}

@@ -559,3 +559,56 @@ test('the back button closes a dialog on phones before leaving the app @mobile',
   await page.getByTestId('add-child-dialog').getByRole('button', { name: 'Cancel' }).tap();
   expect(await page.evaluate(() => history.length)).toBe(len);
 });
+
+test('on tablets the editor is a drawer over a full-width canvas', async ({ page }) => {
+  await page.setViewportSize({ width: 820, height: 1000 });
+  await fresh(page);
+  await expect(page.locator('html')).toHaveAttribute('data-layout', 'medium');
+  const sidebar = page.getByTestId('sidebar');
+  await expect(sidebar).toHaveClass(/hidden/);
+  const canvasBox = (await page.getByTestId('tree-canvas').boundingBox())!;
+  expect(canvasBox.width).toBeGreaterThan(810);
+
+  // Picking a person opens the drawer, and the card is not hidden behind it.
+  await card(page, 'My Father').locator('.card-bg').click({ position: { x: 20, y: 20 } });
+  await expect(sidebar).not.toHaveClass(/hidden/);
+  await expect(page.getByTestId('selected-name')).toHaveText('My Father');
+  await expect
+    .poll(async () => {
+      const s = (await sidebar.boundingBox())!;
+      const c = (await card(page, 'My Father').locator('.card-bg').boundingBox())!;
+      return c.x >= s.x + s.width;
+    })
+    .toBe(true);
+  // The canvas keeps its full width; Escape closes the drawer again.
+  expect((await page.getByTestId('tree-canvas').boundingBox())!.width).toBeGreaterThan(810);
+  await page.keyboard.press('Escape');
+  await expect(sidebar).toHaveClass(/hidden/);
+});
+
+test('the desktop editor panel can be resized and remembers its width', async ({ page }) => {
+  await fresh(page);
+  const sidebar = page.getByTestId('sidebar');
+  const w0 = (await sidebar.boundingBox())!.width;
+  const r = (await page.getByTestId('panel-resizer').boundingBox())!;
+  await page.mouse.move(r.x + r.width / 2, r.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(r.x + r.width / 2 + 100, r.y + 200, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(async () => Math.round((await sidebar.boundingBox())!.width)).toBe(Math.round(w0 + 100));
+
+  // Keyboard: the separator moves with the arrow keys and stops at its limits.
+  await page.getByTestId('panel-resizer').focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect.poll(async () => Math.round((await sidebar.boundingBox())!.width)).toBe(Math.round(w0 + 100 - 16));
+  await page.keyboard.press('End');
+  await expect(page.getByTestId('panel-resizer')).toHaveAttribute('aria-valuenow', '560');
+
+  // Width and open state survive a reload.
+  await page.getByTestId('sidebar-toggle').click();
+  await expect(sidebar).toHaveClass(/hidden/);
+  await page.reload();
+  await expect(sidebar).toHaveClass(/hidden/);
+  await page.getByTestId('sidebar-toggle').click();
+  await expect.poll(async () => Math.round((await sidebar.boundingBox())!.width)).toBe(560);
+});

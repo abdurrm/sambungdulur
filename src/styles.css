@@ -142,10 +142,28 @@ html[data-theme='dark'] .tool-btn.primary { color: #022c22; }
 
 /* ---- Sidebar (builder menu) ---- */
 .sidebar {
-  width: 340px; flex: none; border-right: 1px solid var(--panel-border); background: var(--panel);
+  position: relative; width: var(--panel-w, 340px); flex: none; border-right: 1px solid var(--panel-border); background: var(--panel);
   backdrop-filter: blur(14px); display: flex; flex-direction: column; min-height: 0; z-index: 10; transition: margin 0.2s ease;
 }
-.sidebar.hidden { margin-left: -340px; }
+.sidebar.hidden { margin-left: calc(-1 * var(--panel-w, 340px)); }
+/* Drag the right edge to resize the desktop panel. */
+.panel-resizer {
+  position: absolute; top: 0; right: -5px; bottom: 0; width: 10px; cursor: col-resize; z-index: 12; touch-action: none;
+  border: 0; background: transparent; padding: 0;
+}
+.panel-resizer::after { content: ''; position: absolute; top: 0; bottom: 0; left: 4px; width: 2px; background: transparent; transition: background 0.15s; }
+.panel-resizer:hover::after, .panel-resizer:focus-visible::after, .panel-resizer[data-dragging]::after { background: var(--accent); }
+.panel-resizer:focus-visible { outline: none; }
+/* Tablets: the editor is a drawer laid over the canvas, so the canvas keeps its full width. */
+html[data-layout='medium'] .sidebar {
+  position: absolute; left: 0; top: 0; bottom: 0; z-index: 15; box-shadow: var(--shadow); background: var(--panel-solid);
+  margin-left: 0; transition: transform 0.22s ease;
+}
+html[data-layout='medium'] .sidebar.hidden { margin-left: 0; transform: translateX(-100%); box-shadow: none; }
+html[data-pointer='coarse'] .sidebar-handle { width: 44px; }
+@media (prefers-reduced-motion: reduce) {
+  .sidebar, html[data-layout='medium'] .sidebar { transition: none; }
+}
 .sidebar-handle {
   position: absolute; top: 14px; z-index: 11; width: 26px; height: 44px; border-radius: 0 10px 10px 0;
   border: 1px solid var(--panel-border); border-left: 0; background: var(--panel); color: var(--muted); display: grid; place-items: center;
