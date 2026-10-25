@@ -21,7 +21,7 @@ import { TreeCanvas, ZOOM_MAX, ZOOM_MIN, type CanvasApi, type CanvasInset } from
 import { PANEL_DEFAULT, Sidebar } from './ui/Sidebar';
 import { SHEET_BAR_PX, type SheetSnap } from './ui/sheetSnap';
 import { useBackToClose } from './ui/backToClose';
-import { Toast } from './ui/Toast';
+import { emptyHistory, record, redo as redoStep, undo as undoStep, type History } from './model/history';
 import { GenerationControl, LanguageSelect, SettingsMenu } from './ui/SettingsMenu';
 import { SearchPanel } from './ui/SearchPanel';
 import type { OpenReport } from './ui/OpenDialog';
@@ -35,6 +35,12 @@ import { kinNeighbour } from './model/kinNav';
 
 // Loaded on demand (and precached by the service worker for offline use): not needed for the first view.
 const loadDialogs = () => import('./ui/dialogs');
+const loadToasts = () => import('./ui/toasts');
+const Toasts = lazy(() => loadToasts().then((m) => ({ default: m.Toasts })));
+/** Queue a toast; the Base UI toast module loads on demand (it is warmed at idle). */
+function notify(text: string, opts?: Parameters<typeof import('./ui/toasts').notify>[1]) {
+  void loadToasts().then((m) => m.notify(text, opts));
+}
 const loadPopups = () => import('./ui/HeaderPopups');
 const MoreMenu = lazy(() => import('./ui/MoreMenu'));
 const PersonMenu = lazy(() => import('./ui/PersonMenu'));
@@ -48,6 +54,7 @@ const ShortcutsDialog = lazy(() => loadDialogs().then((m) => ({ default: m.Short
 function preloadLazyUi() {
   const run = () => {
     void loadDialogs();
+    void loadToasts();
     void loadPopups();
     void import('./ui/MoreMenu');
     void import('./ui/PersonMenu');
@@ -153,7 +160,6 @@ export default function App() {
   const [cardMenu, setCardMenu] = useState<{ id: string; anchor: MenuAnchor } | null>(null);
   const [editRequest, setEditRequest] = useState<{ id: string; n: number } | null>(null);
   const [manualMode, setManualMode] = useState(false);
-  const [toast, setToast] = useState<{ text: string; kind?: 'info' | 'error' } | null>(null);
   const [dirty, setDirty] = useState(false);
   const [matches, setMatches] = useState<Set<string>>(new Set());
   const [draftDx, setDraftDx] = useState<Record<string, number>>({});
@@ -162,6 +168,7 @@ export default function App() {
   const [scale, setScale] = useState(1);
   const [installEvt, setInstallEvt] = useState<(Event & { prompt: () => Promise<void> }) | null>(null);
   const canvas = useRef<CanvasApi>(null);
+  const undoRef = useRef<() => boolean>(() => false);
   // Phone editor sheet. Its height is known from the snap point, so the canvas inset follows it directly.
   const [sheet, setSheet] = useState<SheetSnap>('bar');
   const [viewH, setViewH] = useState(() => window.innerHeight);
@@ -199,6 +206,7 @@ export default function App() {
       }
       const initial = withDefaults(d ?? createDefaultTree({ narrow: getViewport().layout === 'narrow' }));
       setDocState(initial);
+      if (!d || localStorage.getItem('sambungdulur.dirty') !== '1') savedRef.current = initial;
       // The original selects the root person on load; do the same so the editor is populated.
       if (getViewport().layout !== 'narrow') setSelectedId(initial.persons[initial.focusId] ? initial.focusId : initial.order[0] ?? null);
       if (d) setDirty(localStorage.getItem('sambungdulur.dirty') === '1');
@@ -215,7 +223,7 @@ export default function App() {
   // ---- Autosave ------------------------------------------------------------------------
   useEffect(() => {
     if (!doc) return;
-    const timer = setTimeout(() => store.saveDoc(doc).catch(() => setToast({ text: t('toastStorageFailed'), kind: 'error' })), 400);
+    const timer = setTimeout(() => store.saveDoc(doc).catch(() => notify(t('toastStorageFailed'), { kind: 'error' })), 400);
     return () => clearTimeout(timer);
   }, [doc]);
   useEffect(() => localStorage.setItem('sambungdulur.dirty', dirty ? '1' : '0'), [dirty]);
@@ -229,8 +237,20 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', onBefore);
   }, [dirty]);
 
-  const setDoc = useCallback((next: TreeDoc | ((d: TreeDoc) => TreeDoc), markDirty = true) => {
-    setDocState((cur) => (cur ? (typeof next === 'function' ? next(cur) : next) : cur));
+  // ---- Undo / redo: every change to the tree's content is a step; view preferences are not. ----
+  const docRef = useRef<TreeDoc | null>(null);
+  docRef.current = doc;
+  const historyRef = useRef<History<TreeDoc>>(emptyHistory());
+  /** The document as last written to / read from a file, to tell whether undo returns to "saved". */
+  const savedRef = useRef<TreeDoc | null>(null);
+  const setDoc = useCallback((next: TreeDoc | ((d: TreeDoc) => TreeDoc), markDirty = true, coalesceKey?: string) => {
+    const cur = docRef.current;
+    if (!cur) return;
+    const value = typeof next === 'function' ? next(cur) : next;
+    if (value === cur) return;
+    if (markDirty) historyRef.current = record(historyRef.current, cur, { key: coalesceKey });
+    docRef.current = value;
+    setDocState(value);
     if (markDirty) setDirty(true);
   }, []);
 
@@ -426,9 +446,10 @@ export default function App() {
       const bytes = buildSambung(doc, await collectMedia());
       downloadBlob(new Blob([bytes as BlobPart], { type: 'application/zip' }), `${safeFileName(doc.title)}.sambung`);
       setDirty(false);
-      setToast({ text: t('toastSaved', { file: `${safeFileName(doc.title)}.sambung`, n: doc.order.length }) });
+      savedRef.current = doc;
+      notify(t('toastSaved', { file: `${safeFileName(doc.title)}.sambung`, n: doc.order.length }));
     } catch (e) {
-      setToast({ text: t('toastSaveFailed', { msg: e instanceof Error ? e.message : String(e) }), kind: 'error' });
+      notify(t('toastSaveFailed', { msg: e instanceof Error ? e.message : String(e) }), { kind: 'error' });
     }
   };
 
@@ -443,8 +464,12 @@ export default function App() {
     setSelectedId(null);
     // Must be set before the new doc renders: the layout effect consumes it on the next layout.
     pendingCenter.current = 'fit';
-    setDocState(withDefaults(next));
-    await store.saveDoc(withDefaults(next));
+    const fresh = withDefaults(next);
+    historyRef.current = emptyHistory();
+    savedRef.current = fresh;
+    docRef.current = fresh;
+    setDocState(fresh);
+    await store.saveDoc(fresh);
   };
 
   const openFile = async (file: File): Promise<OpenReport> => {
@@ -467,6 +492,7 @@ export default function App() {
       if (ftb) {
         const { doc: d, media, report } = await importFtbZip(bytes, initSql, title);
         await replaceDoc(d, media);
+        savedRef.current = null; // imported from a read-only backup: not yet saved as a file
         setDirty(true);
         return {
           title: t('rFtbTitle'),
@@ -584,8 +610,21 @@ export default function App() {
     setDraftDx({});
     setDraftDy({});
     setManualMode(false);
-    setToast({ text: t('toastManualSaved') });
+    notify(t('toastManualSaved'));
   };
+
+  const applyHistory = (dir: 'undo' | 'redo') => {
+    if (manualMode) return false;
+    const r = (dir === 'undo' ? undoStep : redoStep)(historyRef.current, doc);
+    if (!r) return false;
+    historyRef.current = r.history;
+    docRef.current = r.value;
+    setDocState(r.value);
+    setDirty(r.value !== savedRef.current);
+    if (selectedId && !r.value.persons[selectedId]) setSelectedId(null);
+    return true;
+  };
+  undoRef.current = () => applyHistory('undo');
 
   // ---- Keyboard commands (see ui/shortcuts.ts) ------------------------------------------
   const selectAndShow = (id: string) => {
@@ -609,6 +648,10 @@ export default function App() {
         if (overlay) return false;
         setPopover('search');
         return true;
+      case 'undo':
+      case 'redo':
+        if (overlay) return false;
+        return applyHistory(cmd);
       case 'help':
         if (overlay) return false;
         setPopover(null);
@@ -674,7 +717,7 @@ export default function App() {
           className="title-input"
           aria-label={t('treeTitle')}
           value={doc.title}
-          onChange={(e) => setDoc({ ...doc, title: e.target.value })}
+          onChange={(e) => setDoc({ ...doc, title: e.target.value }, true, 'title')}
           data-testid="tree-title"
         />
         {!narrow && (
@@ -960,7 +1003,9 @@ export default function App() {
           onCancel={() => setDialog(null)}
           onConfirm={() => {
             setDialog(null);
+            const name = displayName(doc.persons[dialog.personId], doc.settings);
             run(() => deletePerson(doc, dialog.personId));
+            notify(t('toastDeleted', { name }), { action: { label: t('undo'), onClick: () => undoRef.current() } });
           }}
         />
       )}
@@ -1026,7 +1071,7 @@ export default function App() {
           focusId={focusId}
           getMediaBlob={(id) => store.getMedia(id)}
           onClose={() => setDialog(null)}
-          onDone={(text) => setToast({ text })}
+          onDone={(text) => notify(text)}
         />
       )}
       {dialog?.kind === 'open' && (
@@ -1039,7 +1084,9 @@ export default function App() {
         />
       )}
       </Suspense>
-      {toast && <Toast text={toast.text} kind={toast.kind} onDone={() => setToast(null)} />}
+      <Suspense fallback={null}>
+        <Toasts />
+      </Suspense>
       <KeyboardShortcuts onCommand={onCommand} />
     </div>
   );

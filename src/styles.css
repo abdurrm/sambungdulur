@@ -295,12 +295,27 @@ html[data-pointer='coarse'] .menu-item { min-height: 48px; }
 .dot.female { border-color: var(--female); }
 .dot.other { border-color: var(--other); border-style: dashed; }
 
-.toast {
-  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 200; background: var(--panel-solid);
-  border: 1px solid var(--panel-border); border-left: 4px solid var(--accent); border-radius: 10px; padding: 10px 14px;
-  box-shadow: var(--shadow); font-size: 13.5px; max-width: calc(100vw - 24px);
+.toast-viewport {
+  position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 200;
+  width: min(460px, calc(100vw - 24px)); outline: none;
 }
+html[data-layout='narrow'] .toast-viewport { bottom: calc(56px + 12px + env(safe-area-inset-bottom, 0px)); }
+.toast {
+  position: absolute; left: 0; right: 0; bottom: 0; background: var(--panel-solid);
+  border: 1px solid var(--panel-border); border-left: 4px solid var(--accent); border-radius: 10px; padding: 8px 8px 8px 14px;
+  box-shadow: var(--shadow); font-size: 13.5px;
+  transform: translateY(calc(var(--toast-index, 0) * -8px)) scale(calc(1 - var(--toast-index, 0) * 0.04));
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+.toast[data-starting-style], .toast[data-ending-style] { opacity: 0; transform: translateY(12px); }
+.toast[data-limited] { opacity: 0; pointer-events: none; }
 .toast.error { border-left-color: var(--danger); }
+.toast-content { display: flex; align-items: center; gap: 8px; min-height: 32px; }
+.toast-text { flex: 1; margin: 0; }
+.toast-action { border: 0; background: var(--accent-soft); color: var(--accent-text); font-weight: 650; border-radius: 8px; padding: 0 12px; height: 32px; }
+.toast-close { border: 0; background: transparent; color: var(--dim); width: 32px; height: 32px; border-radius: 8px; font-size: 18px; }
+html[data-pointer='coarse'] .toast-action, html[data-pointer='coarse'] .toast-close { min-height: 44px; min-width: 44px; }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
 
 .crop-stage { position: relative; width: 280px; height: 280px; margin: 0 auto; overflow: hidden; border-radius: 50%; background: var(--hover); touch-action: none; cursor: grab; }
 .crop-stage img { position: absolute; left: 0; top: 0; transform-origin: 0 0; user-select: none; pointer-events: none; max-width: none; }

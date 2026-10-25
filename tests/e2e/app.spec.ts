@@ -535,7 +535,7 @@ test('the phone editor is a draggable sheet with bar, half and full heights @mob
   // Dragging up reaches full height; dragging down steps back one point at a time.
   await dragSheet(page, -300);
   await expect(sheet).toHaveAttribute('data-snap', 'full');
-  await dragSheet(page, 200);
+  await dragSheet(page, 280);
   await expect(sheet).toHaveAttribute('data-snap', 'half');
   await dragSheet(page, 250);
   await expect(sheet).toHaveAttribute('data-snap', 'bar');
@@ -824,4 +824,54 @@ test('double-tap zooms in at that point on phones @mobile', async ({ page }) => 
   await page.touchscreen.tap(c.x + 40, c.y + 120);
   await page.touchscreen.tap(c.x + 40, c.y + 120);
   await expect.poll(() => zoomPctOf(page)).toBeGreaterThan(z0 + 20);
+});
+
+test('undo and redo: Ctrl+Z, Ctrl+Shift+Z and the "Undo" toast after deleting', async ({ page }) => {
+  await fresh(page);
+  const status = page.getByTestId('status-chip');
+  await expect(status).toContainText('saved');
+  await expect(status).not.toContainText('unsaved');
+
+  // Add a sibling, then undo it from the keyboard: the save status follows.
+  await page.getByTestId('add-sibling').click();
+  await expect(persons(page)).toHaveCount(4);
+  const sibling = (await page.getByTestId('selected-name').textContent())!;
+  await expect(status).toContainText('unsaved');
+  await page.getByTestId('tree-canvas').focus();
+  await page.keyboard.press('Control+z');
+  await expect(persons(page)).toHaveCount(3);
+  await expect(status).not.toContainText('unsaved');
+  await page.keyboard.press('Control+Shift+z');
+  await expect(persons(page)).toHaveCount(4);
+
+  // Delete the new sibling, then bring it back from the toast.
+  await card(page, sibling).locator('.card-bg').click({ force: true });
+  await expect(page.getByTestId('selected-name')).toHaveText(sibling);
+  await page.getByTestId('delete-person').click();
+  await page.getByTestId('confirm-ok').click();
+  await expect(persons(page)).toHaveCount(3);
+  await expect(page.getByTestId('toast')).toContainText('deleted');
+  await page.getByTestId('toast-action').click();
+  await expect(persons(page)).toHaveCount(4);
+  await expect(card(page, sibling)).toBeVisible();
+
+  // Typing a title is one undo step, not one per letter.
+  const title = page.getByTestId('tree-title');
+  const before = await title.inputValue();
+  await title.fill(before + ' Baru');
+  await title.press('End');
+  await page.keyboard.type('!');
+  await page.getByTestId('tree-canvas').focus();
+  await page.keyboard.press('Control+z');
+  await expect(title).toHaveValue(before);
+});
+
+test('opening a file starts a fresh undo history', async ({ page }) => {
+  await fresh(page);
+  await page.getByTestId('add-sibling').click();
+  await importFile(page, fixture);
+  await expect(page.getByTestId('view-info')).toContainText('4/4 shown');
+  await page.getByTestId('tree-canvas').focus();
+  await page.keyboard.press('Control+z');
+  await expect(page.getByTestId('view-info')).toContainText('4/4 shown');
 });
