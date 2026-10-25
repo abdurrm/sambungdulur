@@ -15,8 +15,18 @@ export interface CanvasApi {
   zoomBy: (factor: number) => void;
   fit: () => void;
   centerOn: (id: string, scale?: number) => void;
+  /** Pans (keeping the zoom) only if the card is not fully inside the uncovered part of the canvas. */
+  ensureVisible: (id: string) => void;
   getScale: () => number;
 }
+
+/** Parts of the canvas covered by overlays (editor sheet, drawer), in CSS pixels. */
+export interface CanvasInset {
+  left: number;
+  bottom: number;
+}
+const NO_INSET: CanvasInset = { left: 0, bottom: 0 };
+const MARGIN = 12;
 
 interface Props {
   doc: TreeDoc;
@@ -32,6 +42,7 @@ interface Props {
   onDragPerson: (id: string, dx: number, done: boolean) => void;
   onDragBus: (familyId: string, dy: number, done: boolean) => void;
   onScale?: (k: number) => void;
+  inset?: CanvasInset;
 }
 
 export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props, ref) {
@@ -43,6 +54,17 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
   const layoutRef = useRef(props.layout);
   layoutRef.current = props.layout;
   const onScale = props.onScale;
+  const insetRef = useRef<CanvasInset>(props.inset ?? NO_INSET);
+  insetRef.current = props.inset ?? NO_INSET;
+  /** The part of the canvas the user can actually see, in canvas-local pixels. */
+  const viewRect = useCallback(() => {
+    const { width, height } = wrapRef.current!.getBoundingClientRect();
+    const { left, bottom } = insetRef.current;
+    // Never let an overlay shrink the usable area to nothing (e.g. a sheet dragged to full height).
+    const x = Math.min(left, width * 0.6);
+    const h = Math.max(height * 0.25, height - bottom);
+    return { x, y: 0, w: width - x, h };
+  }, []);
 
   useEffect(() => {
     const el = wrapRef.current!;
@@ -69,8 +91,8 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
   const transformTo = useCallback((x: number, y: number, k: number, animate = true) => {
     const el = wrapRef.current!;
     const z = zoomRef.current!;
-    const { width, height } = el.getBoundingClientRect();
-    const tr = zoomIdentity.translate(width / 2 - x * k, height / 2 - y * k).scale(k);
+    const v = viewRect();
+    const tr = zoomIdentity.translate(v.x + v.w / 2 - x * k, v.y + v.h / 2 - y * k).scale(k);
     const sel = select(el);
     if (animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       sel.transition().duration(350).call(z.transform, tr);
@@ -81,11 +103,37 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
     const el = wrapRef.current;
     if (!el) return;
     const L = layoutRef.current;
-    const { width, height } = el.getBoundingClientRect();
+    const { w: width, h: height } = viewRect();
     const pad = 60;
     const k = Math.max(ZOOM_MIN, Math.min(1, (width - pad * 2) / Math.max(1, L.width), (height - pad * 2) / Math.max(1, L.height)));
     transformTo(L.minX + L.width / 2, L.minY + L.height / 2, k);
-  }, [transformTo]);
+  }, [transformTo, viewRect]);
+
+  const ensureVisible = useCallback(
+    (id: string) => {
+      const n = layoutRef.current.nodes.get(id);
+      if (!n || !wrapRef.current) return;
+      const tr = tRef.current;
+      const v = viewRect();
+      const left = tr.applyX(n.x - n.w / 2), right = tr.applyX(n.x + n.w / 2);
+      const top = tr.applyY(n.y), bottom = tr.applyY(n.y + n.h);
+      const inside = left >= v.x + MARGIN && right <= v.x + v.w - MARGIN && top >= v.y + MARGIN && bottom <= v.y + v.h - MARGIN;
+      if (inside) return;
+      // Taller than the visible strip: show the top of the card (name and photo) rather than its middle.
+      const cardH = n.h * tr.k;
+      const cy = cardH > v.h - MARGIN * 2 ? n.y + (v.h / 2 - MARGIN) / tr.k : n.y + n.h / 2;
+      transformTo(n.x, cy, tr.k);
+    },
+    [transformTo, viewRect],
+  );
+
+  // When an overlay grows or shrinks (sheet opened, dragged, closed), keep the selected card in view.
+  const insetKey = `${props.inset?.left ?? 0}:${props.inset?.bottom ?? 0}`;
+  const selectedRef = useRef(props.selectedId);
+  selectedRef.current = props.selectedId;
+  useEffect(() => {
+    if (selectedRef.current) ensureVisible(selectedRef.current);
+  }, [insetKey, ensureVisible]);
 
   useImperativeHandle(
     ref,
@@ -102,9 +150,10 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
         if (!n) return;
         transformTo(n.x, n.y + n.h / 2, scale ?? Math.max(0.6, tRef.current.k));
       },
+      ensureVisible,
       getScale: () => tRef.current.k,
     }),
-    [fit, transformTo],
+    [fit, transformTo, ensureVisible],
   );
 
   // Pointer handling: select on click, drag handles in manual mode.

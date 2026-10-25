@@ -17,7 +17,7 @@ import { importFtbZip } from './ftb/importFtb';
 import { buildSambung, isSambung, parseSambung } from './io/sambungFile';
 import { downloadBlob, safeFileName } from './io/imageExport';
 import * as store from './storage/idb';
-import { TreeCanvas, ZOOM_MAX, ZOOM_MIN, type CanvasApi } from './ui/TreeCanvas';
+import { TreeCanvas, ZOOM_MAX, ZOOM_MIN, type CanvasApi, type CanvasInset } from './ui/TreeCanvas';
 import { Sidebar } from './ui/Sidebar';
 import { AddChildDialog, ConfirmDialog, ManualLayoutInfo, MessageDialog, Toast } from './ui/dialogs';
 import { CropDialog } from './ui/CropDialog';
@@ -109,6 +109,29 @@ export default function App() {
   const [scale, setScale] = useState(1);
   const [installEvt, setInstallEvt] = useState<(Event & { prompt: () => Promise<void> }) | null>(null);
   const canvas = useRef<CanvasApi>(null);
+  const sheetRef = useRef<HTMLElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [inset, setInset] = useState<CanvasInset>({ left: 0, bottom: 0 });
+  // How much of the canvas the editor covers. Only on narrow screens does it float over the canvas.
+  useEffect(() => {
+    const sheet = sheetRef.current;
+    const stage = stageRef.current;
+    if (!sheet || !stage) return;
+    const measure = () => {
+      if (!narrow) return setInset((cur) => (cur.left || cur.bottom ? { left: 0, bottom: 0 } : cur));
+      const covered = Math.max(0, Math.round(stage.getBoundingClientRect().bottom - sheet.getBoundingClientRect().top));
+      setInset((cur) => (cur.bottom === covered && cur.left === 0 ? cur : { left: 0, bottom: covered }));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(sheet);
+    ro.observe(stage);
+    sheet.addEventListener('transitionend', measure);
+    return () => {
+      ro.disconnect();
+      sheet.removeEventListener('transitionend', measure);
+    };
+  }, [narrow, sidebarHidden, doc !== null]);
   const pendingCenter = useRef<string | 'fit' | null>('fit');
 
   // ---- Load persisted state ------------------------------------------------------------
@@ -615,6 +638,7 @@ export default function App() {
           onToggleHidden={() => setSidebarHidden(!sidebarHidden)}
           mediaUrl={mediaUrl}
           manualMode={manualMode}
+          asideRef={sheetRef}
           onSave={(id, fields) => {
             if (Object.keys(fields).length) setDoc(updatePerson(doc, id, fields));
           }}
@@ -632,7 +656,7 @@ export default function App() {
           onDeleteImage={() => selectedId && setDialog({ kind: 'confirmDeleteImage', personId: selectedId })}
           onFocus={() => selectedId && focusOn(selectedId)}
         />
-        <div className="stage">
+        <div className="stage" ref={stageRef}>
         <TreeCanvas
           ref={canvas}
           doc={doc}
@@ -644,6 +668,7 @@ export default function App() {
           mediaUrl={mediaUrl}
           manualMode={manualMode}
           onScale={setScale}
+          inset={inset}
           onSelect={(id) => {
             setSelectedId(id);
             if (id && narrow) setSidebarHidden(false);

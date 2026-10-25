@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Pencil, Trash2, UserPlus, Users, Baby, Heart, ImagePlus, ImageMinus, Crosshair } from 'lucide-react';
 import type { Gender, PersonFields, TreeDoc } from '../model/types';
@@ -27,6 +27,8 @@ interface Props {
   onDeleteImage: () => void;
   onFocus: () => void;
   manualMode: boolean;
+  /** The editor element, measured by the App to know how much of the canvas it covers. */
+  asideRef?: Ref<HTMLElement>;
 }
 
 const genderLabel = (g: Gender) => (g === 'female' ? t('female') : g === 'male' ? t('male') : t('other'));
@@ -333,7 +335,7 @@ export function Sidebar(props: Props) {
   const toggleLabel = props.hidden ? t('expandMenu') : t('collapseMenu');
   return (
     <>
-      <aside className={`sidebar${props.hidden ? ' hidden' : ''}`} data-testid="sidebar" aria-label={t('editorMenu')}>
+      <aside ref={props.asideRef} className={`sidebar${props.hidden ? ' hidden' : ''}`} data-testid="sidebar" aria-label={t('editorMenu')}>
         <button className="sidebar-grip" onClick={props.onToggleHidden} aria-label={toggleLabel}>
           {props.hidden ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           {p ? displayName(p, doc.settings) : t('editor')}

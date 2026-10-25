@@ -458,3 +458,30 @@ test('starter hint names the editor where it really is on phones @mobile', async
   await expect(card(page, 'Me')).toContainText('sheet');
   await expect(card(page, 'Me')).not.toContainText('left');
 });
+
+async function sheetTop(page: Page) {
+  return (await page.getByTestId('sidebar').boundingBox())!.y;
+}
+async function expectAboveSheet(page: Page, name: string) {
+  await expect
+    .poll(async () => {
+      const b = (await card(page, name).locator('.card-bg').boundingBox())!;
+      return b.y + b.height <= (await sheetTop(page)) && b.y >= 0;
+    }, { message: name + ' card is fully above the editor sheet' })
+    .toBe(true);
+}
+
+test('the tapped person stays visible above the editor sheet @mobile', async ({ page }) => {
+  await fresh(page);
+  // "Me" sits at the bottom of the starter tree, exactly where the sheet opens.
+  await card(page, 'Me').locator('.card-bg').tap({ position: { x: 20, y: 20 } });
+  await expect(page.getByTestId('sidebar')).not.toHaveClass(/hidden/);
+  await expectAboveSheet(page, 'Me');
+
+  // Search results are centred in the uncovered part of the canvas, not behind the sheet.
+  await page.getByTestId('btn-search').tap();
+  await page.getByTestId('search-input').fill('mother');
+  await page.getByTestId('search-input').press('Enter');
+  await expect(page.getByTestId('selected-name')).toHaveText('My Mother');
+  await expectAboveSheet(page, 'My Mother');
+});
