@@ -30,9 +30,16 @@ export interface CanvasApi {
   zoomBy: (factor: number) => void;
   fit: () => void;
   centerOn: (id: string, scale?: number) => void;
-  /** Pans (keeping the zoom) only if the card is not fully inside the uncovered part of the canvas. */
-  ensureVisible: (id: string) => void;
+  /** Pans (keeping the zoom) only if the card is not fully inside the uncovered part of the canvas.
+   *  `extra` keeps room for an overlay that sits beside the card (the desktop editor pop-up). */
+  ensureVisible: (id: string, extra?: Partial<CanvasInset & { right: number }>) => void;
   getScale: () => number;
+  /** A card's box on screen (client coordinates), or null when it is not laid out. */
+  cardRect: (id: string) => DOMRect | null;
+  /** The canvas' box on screen. */
+  canvasRect: () => DOMRect | null;
+  /** Called after every pan or zoom (at most once per animation frame). Returns an unsubscribe function. */
+  onViewChange: (fn: () => void) => () => void;
 }
 
 /** Parts of the canvas covered by overlays (editor sheet, drawer), in CSS pixels. */
@@ -75,6 +82,16 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
   const layoutRef = useRef(props.layout);
   layoutRef.current = props.layout;
   const onScale = props.onScale;
+  // Pan/zoom listeners (the editor pop-up follows its card), throttled to one call per frame.
+  const viewListeners = useRef(new Set<() => void>());
+  const viewFrame = useRef(0);
+  const notifyView = useCallback(() => {
+    if (viewFrame.current) return;
+    viewFrame.current = requestAnimationFrame(() => {
+      viewFrame.current = 0;
+      viewListeners.current.forEach((fn) => fn());
+    });
+  }, []);
   const insetRef = useRef<CanvasInset>(props.inset ?? NO_INSET);
   insetRef.current = props.inset ?? NO_INSET;
   /** The part of the canvas the user can actually see, in canvas-local pixels. */
@@ -101,18 +118,19 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
       .on('zoom', (ev) => {
         setT(ev.transform);
         onScale?.(ev.transform.k);
+        notifyView();
       });
     zoomRef.current = z;
     select(el).call(z).on('dblclick.zoom', null);
     return () => {
       select(el).on('.zoom', null);
     };
-  }, [onScale]);
+  }, [onScale, notifyView]);
 
-  const transformTo = useCallback((x: number, y: number, k: number, animate = true) => {
+  const transformTo = useCallback((x: number, y: number, k: number, animate = true, view?: { x: number; y: number; w: number; h: number }) => {
     const el = wrapRef.current!;
     const z = zoomRef.current!;
-    const v = viewRect();
+    const v = view ?? viewRect();
     const tr = zoomIdentity.translate(v.x + v.w / 2 - x * k, v.y + v.h / 2 - y * k).scale(k);
     const sel = select(el);
     if (animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -131,11 +149,14 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
   }, [transformTo, viewRect]);
 
   const ensureVisible = useCallback(
-    (id: string) => {
+    (id: string, extra?: Partial<CanvasInset & { right: number }>) => {
       const n = layoutRef.current.nodes.get(id);
       if (!n || !wrapRef.current) return;
       const tr = tRef.current;
-      const v = viewRect();
+      const base = viewRect();
+      // Leave room for the overlay too, but never shrink the view below 40 % of the canvas.
+      const reserve = Math.min(extra?.right ?? 0, base.w * 0.6);
+      const v = { ...base, w: base.w - reserve };
       const left = tr.applyX(n.x - n.w / 2), right = tr.applyX(n.x + n.w / 2);
       const top = tr.applyY(n.y), bottom = tr.applyY(n.y + n.h);
       const inside = left >= v.x + MARGIN && right <= v.x + v.w - MARGIN && top >= v.y + MARGIN && bottom <= v.y + v.h - MARGIN;
@@ -143,7 +164,7 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
       // Taller than the visible strip: show the top of the card (name and photo) rather than its middle.
       const cardH = n.h * tr.k;
       const cy = cardH > v.h - MARGIN * 2 ? n.y + (v.h / 2 - MARGIN) / tr.k : n.y + n.h / 2;
-      transformTo(n.x, cy, tr.k);
+      transformTo(n.x, cy, tr.k, true, v);
     },
     [transformTo, viewRect],
   );
@@ -173,6 +194,19 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
       },
       ensureVisible,
       getScale: () => tRef.current.k,
+      cardRect: (id) => {
+        const n = layoutRef.current.nodes.get(id);
+        const el = wrapRef.current;
+        if (!n || !el) return null;
+        const r = el.getBoundingClientRect();
+        const tr = tRef.current;
+        return new DOMRect(r.left + tr.applyX(n.x - n.w / 2), r.top + tr.applyY(n.y), n.w * tr.k, n.h * tr.k);
+      },
+      canvasRect: () => wrapRef.current?.getBoundingClientRect() ?? null,
+      onViewChange: (fn) => {
+        viewListeners.current.add(fn);
+        return () => viewListeners.current.delete(fn);
+      },
     }),
     [fit, transformTo, ensureVisible],
   );

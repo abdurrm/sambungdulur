@@ -17,7 +17,7 @@ import { buildSambung, isSambung, parseSambung } from './io/sambungFile';
 import { downloadBlob, safeFileName } from './io/imageExport';
 import * as store from './storage/idb';
 import { TreeCanvas, ZOOM_MAX, ZOOM_MIN, type CanvasApi, type CanvasInset } from './ui/TreeCanvas';
-import { PANEL_DEFAULT, Sidebar } from './ui/Sidebar';
+import { PANEL_DEFAULT, Sidebar, type EditRequest } from './ui/Sidebar';
 import { SHEET_BAR_PX, type SheetSnap } from './ui/sheetSnap';
 import { useBackToClose } from './ui/backToClose';
 import { emptyHistory, record, redo as redoStep, undo as undoStep, type History } from './model/history';
@@ -77,6 +77,11 @@ function preloadLazyUi() {
   if ('requestIdleCallback' in window) requestIdleCallback(run, { timeout: 2000 });
   else setTimeout(run, 800);
 }
+// Desktop editor pop-up (Base UI Popover): fetched right away on wide screens, where it shows on the first view.
+const loadEditorPopover = () => import('./ui/EditorPopover');
+const EditorPopover = lazy(loadEditorPopover);
+/** Room kept beside the selected card for the editor pop-up (its width plus the gap). */
+const POPUP_RESERVE = 384;
 const CropDialog = lazy(() => import('./ui/CropDialog').then((m) => ({ default: m.CropDialog })));
 const ExportDialog = lazy(() => import('./ui/ExportDialog').then((m) => ({ default: m.ExportDialog })));
 const OpenDialog = lazy(() => import('./ui/OpenDialog').then((m) => ({ default: m.OpenDialog })));
@@ -149,8 +154,8 @@ export default function App() {
     document.documentElement.dataset.layout = viewport.layout;
     document.documentElement.dataset.pointer = viewport.pointer;
   }, [viewport.layout, viewport.pointer]);
-  // Editor panel: on desktop its width and open state are remembered; on tablets it is a drawer that
-  // starts closed and opens when a person is picked.
+  // Editor: a pop-up beside the selected card on desktops; on tablets a drawer that starts closed and opens
+  // when a person is picked (its width is remembered).
   const [panel, setPanel] = useState<{ width: number; hidden: boolean }>(() => {
     try {
       const v = JSON.parse(localStorage.getItem(PANEL_KEY) ?? 'null');
@@ -167,6 +172,8 @@ export default function App() {
     if (getViewport().layout === 'medium') setDrawerOpen(!hidden);
     else setPanel((p) => ({ ...p, hidden }));
   };
+  // Desktop pop-up: open for the selected person unless dismissed (Escape, close button) for that person.
+  const [dismissedId, setDismissedId] = useState<string | null>(null);
   const [popover, setPopover] = useState<null | 'settings' | 'search' | 'more' | 'gens'>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
   // Screen-reader announcements (polite live region); toasts announce themselves.
@@ -188,7 +195,7 @@ export default function App() {
     }
   };
   const [cardMenu, setCardMenu] = useState<{ id: string; anchor: MenuAnchor } | null>(null);
-  const [editRequest, setEditRequest] = useState<{ id: string; n: number } | null>(null);
+  const [editRequest, setEditRequest] = useState<EditRequest | null>(null);
   const [manualMode, setManualMode] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [matches, setMatches] = useState<Set<string>>(new Set());
@@ -234,7 +241,7 @@ export default function App() {
       } catch {
         /* IndexedDB unavailable (private mode): start fresh */
       }
-      const initial = withDefaults(d ?? createDefaultTree({ narrow: getViewport().layout === 'narrow' }));
+      const initial = withDefaults(d ?? createDefaultTree({ narrow: getViewport().layout === 'narrow', wide: getViewport().layout === 'wide' }));
       setDocState(initial);
       if (!d || localStorage.getItem('sambungdulur.dirty') !== '1') savedRef.current = initial;
       // The original selects the root person on load; do the same so the editor is populated.
@@ -246,6 +253,7 @@ export default function App() {
       setInstallEvt(e as Event & { prompt: () => Promise<void> });
     };
     window.addEventListener('beforeinstallprompt', onPrompt);
+    if (getViewport().layout === 'wide') void loadEditorPopover();
     preloadLazyUi();
     return () => window.removeEventListener('beforeinstallprompt', onPrompt);
   }, []);
@@ -352,6 +360,13 @@ export default function App() {
     return { up, down };
   }, [doc, visible]);
 
+  // Desktop: keep the selected card and its pop-up side by side on screen (pans only when needed).
+  useEffect(() => {
+    if (viewport.layout !== 'wide' || !selectedId) return;
+    const id = selectedId;
+    const raf = requestAnimationFrame(() => canvas.current?.ensureVisible(id, { right: POPUP_RESERVE }));
+    return () => cancelAnimationFrame(raf);
+  }, [selectedId, viewport.layout]);
   useEffect(() => {
     if (!layout || !pendingCenter.current) return;
     const target = pendingCenter.current;
@@ -390,14 +405,14 @@ export default function App() {
   };
 
   /** Runs one person action; shared by the editor panel and the card menus. */
-  const doAction = (action: PersonActionId, id: string) => {
+  const doAction = (action: PersonActionId, id: string, opts: { focus?: boolean } = {}) => {
     switch (action) {
       case 'edit':
         setSelectedId(id);
-        setEditRequest({ id, n: Date.now() });
+        setDismissedId(null);
+        setEditRequest({ id, n: Date.now(), focus: opts.focus });
         if (narrow) setSheet('full');
         else if (viewport.layout === 'medium') setDrawerOpen(true);
-        else setSidebarHidden(false);
         break;
       case 'addParents':
         run(() => addParents(doc, id), true);
@@ -665,7 +680,7 @@ export default function App() {
   const selectAndShow = (id: string) => {
     setSelectedId(id);
     announce(t('a11ySelected', { who: personLabel(doc, id) }));
-    requestAnimationFrame(() => canvas.current?.ensureVisible(id));
+    if (!wide) requestAnimationFrame(() => canvas.current?.ensureVisible(id));
   };
   const toggleTheme = () => {
     const theme = doc.settings.theme === 'light' ? 'dark' : 'light';
@@ -762,7 +777,7 @@ export default function App() {
       }
       case 'edit':
         if (!selectedId || manualMode) return false;
-        doAction('edit', selectedId);
+        doAction('edit', selectedId, { focus: true });
         return true;
       case 'delete':
         if (!selectedId || manualMode) return false;
@@ -773,6 +788,7 @@ export default function App() {
     }
   };
 
+  const editorOpen = wide && !manualMode && !!selectedId && !!doc.persons[selectedId] && layout.nodes.has(selectedId) && dismissedId !== selectedId;
   const statusText = `${dirty ? t('unsaved') : t('saved')} · ${t('people', { n: doc.order.length })}`;
   const missingMedia = Object.values(doc.media).filter((m) => !m.available).length;
   const comps = doc.order.length > 1 && visible.hiddenCount > 0 ? components(doc).length : 1;
@@ -923,13 +939,12 @@ export default function App() {
 
       <main className="main">
         <h1 className="sr-only">SambungDulur · {doc.title}</h1>
-        <Sidebar
+        {!wide && <Sidebar
           doc={doc}
           selectedId={selectedId}
           hidden={sidebarHidden || manualMode}
           onToggleHidden={() => setSidebarHidden(!sidebarHidden)}
           width={panel.width}
-          onResize={wide ? (width) => setPanel((p) => ({ ...p, width })) : undefined}
           mediaUrl={mediaUrl}
           manualMode={manualMode}
           sheet={narrow ? sheetSnap : null}
@@ -947,7 +962,7 @@ export default function App() {
           onUploadImage={onUploadImage}
           onDeleteImage={() => selectedId && setDialog({ kind: 'confirmDeleteImage', personId: selectedId })}
           onFocus={() => selectedId && focusOn(selectedId)}
-        />
+        />}
         <div className="stage">
         <TreeCanvas
           ref={canvas}
@@ -963,13 +978,14 @@ export default function App() {
           inset={inset}
           onSelect={(id) => {
             setSelectedId(id);
+            setDismissedId(null);
             if (narrow) setSheet(id ? 'half' : 'bar');
             else if (viewport.layout === 'medium') setDrawerOpen(!!id);
           }}
           onAction={onCardAction}
           coarsePointer={viewport.pointer === 'coarse'}
           onCardMenu={(id, anchor) => setCardMenu({ id, anchor })}
-          onEditRequest={(id) => doAction('edit', id)}
+          onEditRequest={(id) => doAction('edit', id, { focus: true })}
           onDragPerson={(id, delta, done) => {
             if (done) {
               setDraftDx((d) => ({ ...d, [id]: (d[id] ?? doc.manual.personDx[id] ?? 0) + delta }));
@@ -984,6 +1000,44 @@ export default function App() {
           }}
         />
 
+        {wide && (
+          <Suspense fallback={null}>
+            <EditorPopover
+              open={editorOpen}
+              personId={editorOpen ? selectedId : null}
+              label={selectedId && doc.persons[selectedId] ? t('editorFor', { name: displayName(doc.persons[selectedId], doc.settings) }) : t('editor')}
+              canvas={canvas}
+              escapeBlocked={() => !!dialog || !!cardMenu || !!popover}
+              onClose={() => {
+                setDismissedId(selectedId);
+                canvas.current && document.querySelector<HTMLElement>('[data-testid="tree-canvas"]')?.focus();
+              }}
+            >
+                    <Sidebar
+                      frame="popup"
+                doc={doc}
+                selectedId={selectedId}
+                      hidden={false}
+                      onToggleHidden={() => undefined}
+                mediaUrl={mediaUrl}
+                manualMode={manualMode}
+                onSave={(id, fields) => {
+                  if (Object.keys(fields).length) setDoc(updatePerson(doc, id, fields));
+                }}
+                onAddParents={() => selectedId && doAction('addParents', selectedId)}
+                onAddSibling={() => selectedId && doAction('addSibling', selectedId)}
+                onAddPartner={() => selectedId && doAction('addPartner', selectedId)}
+                onAddChild={() => selectedId && doAction('addChild', selectedId)}
+                onDelete={() => selectedId && doAction('delete', selectedId)}
+                editRequest={editRequest}
+                onUploadImage={onUploadImage}
+                onDeleteImage={() => selectedId && setDialog({ kind: 'confirmDeleteImage', personId: selectedId })}
+                onFocus={() => selectedId && focusOn(selectedId)}
+        />
+            </EditorPopover>
+          </Suspense>
+        )}
+
         {manualMode && (
           <div className="manual-bar" data-testid="manual-bar">
             <span>{t('manualBar')}</span>
@@ -993,7 +1047,7 @@ export default function App() {
           </div>
         )}
 
-        {onboarding && !manualMode && <OnboardingHint pointer={viewport.pointer} onDismiss={dismissOnboarding} />}
+        {onboarding && !manualMode && <OnboardingHint pointer={viewport.pointer} wide={wide} onDismiss={dismissOnboarding} />}
         <div className="view-info" data-testid="view-info">
           {narrow && (
             <Suspense fallback={null}>
@@ -1092,7 +1146,7 @@ export default function App() {
           onCancel={() => setDialog(null)}
           onConfirm={async () => {
             setDialog(null);
-            await replaceDoc(createDefaultTree({ narrow }), new Map());
+            await replaceDoc(createDefaultTree({ narrow, wide }), new Map());
             setDirty(false);
           }}
         />

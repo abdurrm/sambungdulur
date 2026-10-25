@@ -39,8 +39,17 @@ interface Props {
   /** Desktop panel width (px). When `onResize` is set the right edge can be dragged or moved with arrow keys. */
   width?: number;
   onResize?: (width: number) => void;
-  /** Asks the panel to open the edit form for this person (card menu, double-click). */
-  editRequest?: { id: string; n: number } | null;
+  /** Asks the panel to open the edit form for this person (card menu, double-click, Enter / E).
+   *  `focus` moves keyboard focus to the first field. */
+  editRequest?: EditRequest | null;
+  /** `popup`: only the editor content, framed by the desktop pop-up (which brings its own chrome). */
+  frame?: 'popup';
+}
+
+export interface EditRequest {
+  id: string;
+  n: number;
+  focus?: boolean;
 }
 
 export const PANEL_MIN = 280;
@@ -260,8 +269,15 @@ export function Sidebar(props: Props) {
     if (editRequest && editRequest.id === selectedId && consumed.current !== editRequest.n) {
       consumed.current = editRequest.n;
       setEditing(true);
+      if (editRequest.focus) focusFirst.current = true;
     }
   }, [editRequest, selectedId]);
+  const focusFirst = useRef(false);
+  useEffect(() => {
+    if (!editing || !focusFirst.current) return;
+    focusFirst.current = false;
+    requestAnimationFrame(() => bodyRef.current?.querySelector<HTMLElement>('[data-testid="edit-form"] input, [data-testid="edit-form"] select')?.focus());
+  }, [editing]);
   const onEditingChange = props.onEditingChange;
   useEffect(() => onEditingChange?.(editing), [editing, onEditingChange]);
   const sheet = props.sheet ?? null;
@@ -435,6 +451,13 @@ export function Sidebar(props: Props) {
     );
   }
 
+  if (props.frame === 'popup') {
+    return (
+      <div className="editor-popup-body" ref={bodyRef} data-testid="editor-body">
+        {body}
+      </div>
+    );
+  }
   const toggleLabel = props.hidden ? t('expandMenu') : t('collapseMenu');
   if (sheet) {
     return (

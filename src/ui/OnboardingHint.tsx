@@ -6,7 +6,7 @@ import type { PointerKind } from './viewport';
 export const ONBOARDED_KEY = 'sambungdulur.onboarded';
 
 /** First-visit tips, worded for the input in use. Non-blocking; dismissed for good with one tap or Escape. */
-export function OnboardingHint(props: { pointer: PointerKind; onDismiss: () => void }) {
+export function OnboardingHint(props: { pointer: PointerKind; wide?: boolean; onDismiss: () => void }) {
   // Listen in the capture phase: other layers (the phone sheet) consume Escape for themselves.
   const dismiss = useRef(props.onDismiss);
   dismiss.current = props.onDismiss;
@@ -15,7 +15,7 @@ export function OnboardingHint(props: { pointer: PointerKind; onDismiss: () => v
     document.addEventListener('keydown', onKey, true);
     return () => document.removeEventListener('keydown', onKey, true);
   }, []);
-  const tips = props.pointer === 'coarse' ? (['obTap', 'obLongPress', 'obDrag'] as const) : (['obClick', 'obRightClick', 'obKeys'] as const);
+  const tips = props.pointer === 'coarse' ? (['obTap', 'obLongPress', 'obDrag'] as const) : ([props.wide ? 'obClickWide' : 'obClick', 'obRightClick', 'obKeys'] as const);
   return (
     <aside className="onboarding" aria-labelledby="onboarding-title" data-testid="onboarding">
       <div className="onboarding-head">

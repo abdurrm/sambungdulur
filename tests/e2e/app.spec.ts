@@ -201,14 +201,15 @@ test.describe('family tree editor', () => {
   });
 
   test('manual layout moves a person and survives reload', async ({ page }) => {
-    const before = await card(page, 'My Father').locator('.card-bg').boundingBox();
+    // The view settles first (fit, then room for the editor pop-up).
+    const before = await stableBox(card(page, 'My Father').locator('.card-bg'));
     await page.getByTestId('btn-manual').click();
     await expect(page.getByTestId('manual-continue')).toBeDisabled();
     await expect(page.getByTestId('manual-continue')).toBeEnabled({ timeout: 6000 });
     await page.getByTestId('manual-continue').click();
     await expect(page.getByTestId('manual-save')).toBeDisabled();
-    // The editor panel slides away (0.2s) and the cards shift with it; wait before measuring.
-    await page.waitForTimeout(500);
+    // The editor pop-up closes in manual layout; the canvas does not move.
+    await expect(page.getByTestId('editor-popup')).toHaveCount(0);
     const handle = card(page, 'My Father').locator('.move-handle rect');
     const hb = (await handle.boundingBox())!;
     await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
@@ -220,7 +221,7 @@ test.describe('family tree editor', () => {
     expect(after!.x).toBeLessThan(before!.x - 40);
     await page.waitForTimeout(700);
     await page.reload();
-    const reloaded = await card(page, 'My Father').locator('.card-bg').boundingBox();
+    const reloaded = await stableBox(card(page, 'My Father').locator('.card-bg'));
     expect(Math.abs(reloaded!.x - after!.x)).toBeLessThan(80);
   });
 
@@ -384,7 +385,7 @@ test('dialogs trap focus, close with Escape and return focus to their trigger', 
   await expect(trigger).toBeFocused();
 
   // Dialogs opened from the editor return focus there too.
-  await page.getByTestId('sidebar').getByTestId('add-child').click();
+  await page.getByTestId('editor-popup').getByTestId('add-child').click();
   await expect(page.getByTestId('add-child-dialog')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('add-child-dialog')).toBeHidden();
@@ -604,31 +605,110 @@ test('on tablets the editor is a drawer over a full-width canvas', async ({ page
   await expect(sidebar).toHaveClass(/hidden/);
 });
 
-test('the desktop editor panel can be resized and remembers its width', async ({ page }) => {
+const overlaps = (a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }) =>
+  a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+
+test('desktop: the editor is a pop-up beside the selected card over a full-width canvas', async ({ page }) => {
   await fresh(page);
-  const sidebar = page.getByTestId('sidebar');
-  const w0 = (await sidebar.boundingBox())!.width;
-  const r = (await page.getByTestId('panel-resizer').boundingBox())!;
-  await page.mouse.move(r.x + r.width / 2, r.y + 200);
+  // No left panel: the canvas spans the viewport.
+  await expect(page.locator('aside.sidebar')).toHaveCount(0);
+  await expect(page.getByTestId('sidebar-toggle')).toHaveCount(0);
+  expect((await page.getByTestId('tree-canvas').boundingBox())!.width).toBeGreaterThan(1390);
+  // The starter tree no longer points to a left menu.
+  await expect(card(page, 'Me')).not.toContainText('left');
+  await expect(card(page, 'Me')).toContainText('editor');
+
+  // Clicking a card opens a pop-up named after the person, next to (not over) the card.
+  const father = card(page, 'My Father').locator('.card-bg');
+  await stableBox(father);
+  await father.click({ position: { x: 20, y: 20 }, force: true });
+  const popup = page.getByRole('dialog', { name: 'Editor: My Father' });
+  await expect(popup).toBeVisible();
+  const pop = page.getByTestId('editor-popup');
+  const cardBox = await stableBox(father);
+  const popBox = await stableBox(pop);
+  expect(overlaps(cardBox, popBox)).toBe(false);
+  // It leaves the zoom buttons and the view info free.
+  for (const id of ['btn-zoom-in', 'btn-zoom-out', 'btn-center', 'view-info']) {
+    expect(overlaps(popBox, (await page.getByTestId(id).boundingBox())!), id).toBe(false);
+  }
+
+  // Panning the canvas carries the pop-up along with its card.
+  const c = (await page.getByTestId('tree-canvas').boundingBox())!;
+  await page.mouse.move(c.x + 40, c.y + 600);
   await page.mouse.down();
-  await page.mouse.move(r.x + r.width / 2 + 100, r.y + 200, { steps: 6 });
+  // Sideways: the pop-up may already rest against the margin under the header.
+  await page.mouse.move(c.x - 80, c.y + 600, { steps: 8 });
   await page.mouse.up();
-  await expect.poll(async () => Math.round((await sidebar.boundingBox())!.width)).toBe(Math.round(w0 + 100));
+  const card2 = await stableBox(father);
+  const pop2 = await stableBox(pop);
+  expect(Math.round(card2.x - cardBox.x)).toBe(-120);
+  expect(Math.abs(pop2.x - popBox.x - (card2.x - cardBox.x)) + Math.abs(pop2.y - popBox.y - (card2.y - cardBox.y))).toBeLessThan(3);
+  // A card panned off screen hides its pop-up; it comes back with the card.
+  await page.mouse.move(c.x + 40, c.y + 600);
+  await page.mouse.down();
+  await page.mouse.move(c.x + 1300, c.y + 600, { steps: 10 });
+  await page.mouse.up();
+  await expect(pop).toBeHidden();
+  await page.mouse.move(c.x + 1300, c.y + 600);
+  await page.mouse.down();
+  await page.mouse.move(c.x + 40, c.y + 600, { steps: 10 });
+  await page.mouse.up();
+  await expect(pop).toBeVisible();
 
-  // Keyboard: the separator moves with the arrow keys and stops at its limits.
-  await page.getByTestId('panel-resizer').focus();
-  await page.keyboard.press('ArrowLeft');
-  await expect.poll(async () => Math.round((await sidebar.boundingBox())!.width)).toBe(Math.round(w0 + 100 - 16));
-  await page.keyboard.press('End');
-  await expect(page.getByTestId('panel-resizer')).toHaveAttribute('aria-valuenow', '560');
+  // Another card moves the pop-up there (the canvas stays clickable while it is open); Escape and the
+  // empty canvas close it, and focus returns to the canvas.
+  await card(page, 'Me').locator('.card-bg').click({ position: { x: 20, y: 20 } });
+  await expect(page.getByRole('dialog', { name: 'Editor: Me' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(pop).toHaveCount(0);
+  await expect(page.getByTestId('tree-canvas')).toBeFocused();
+  await card(page, 'My Mother').locator('.card-bg').click({ position: { x: 20, y: 20 }, force: true });
+  await expect(pop).toBeVisible();
+  await page.getByTestId('editor-close').click();
+  await expect(pop).toHaveCount(0);
+  // Clicking the (still selected) card again reopens it; its top-left corner holds the ⋯ button.
+  await card(page, 'My Mother').locator('.card-bg').click({ position: { x: 100, y: 150 }, force: true });
+  await expect(pop).toBeVisible();
+  await page.getByTestId('tree-canvas').click({ position: { x: 40, y: 600 } });
+  await expect(pop).toHaveCount(0);
+  await expect(page.getByTestId('tree-canvas')).toBeFocused();
+});
 
-  // Width and open state survive a reload.
-  await page.getByTestId('sidebar-toggle').click();
-  await expect(sidebar).toHaveClass(/hidden/);
-  await page.reload();
-  await expect(sidebar).toHaveClass(/hidden/);
-  await page.getByTestId('sidebar-toggle').click();
-  await expect.poll(async () => Math.round((await sidebar.boundingBox())!.width)).toBe(560);
+test('desktop pop-up: arrows move it without taking focus, Enter edits; closed in manual layout', async ({ page }) => {
+  await fresh(page);
+  await expect(page.getByRole('dialog', { name: 'Editor: Me' })).toBeVisible();
+  await page.getByTestId('tree-canvas').focus();
+  await page.keyboard.press('ArrowUp');
+  await expect(page.getByRole('dialog', { name: 'Editor: My Father' })).toBeVisible();
+  await expect(page.getByTestId('tree-canvas')).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('dialog', { name: 'Editor: My Mother' })).toBeVisible();
+  await expect(page.getByTestId('tree-canvas')).toBeFocused();
+  // Enter opens the form inside the pop-up with the first field focused; it scrolls when tall.
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('edit-form')).toBeVisible();
+  await expect(page.getByTestId('f-given')).toBeFocused();
+  const pop = page.getByTestId('editor-popup');
+  const box = (await pop.boundingBox())!;
+  expect(box.y).toBeGreaterThanOrEqual(56);
+  expect(box.y + box.height).toBeLessThanOrEqual(900);
+  await page.getByTestId('f-given').fill('Mum');
+  await page.getByTestId('f-save').click();
+  await expect(page.getByRole('dialog', { name: 'Editor: Mum' })).toBeVisible();
+
+  // Toasts stay clear of the pop-up.
+  await page.getByTestId('btn-save').click();
+  await expect(page.getByTestId('toast')).toBeVisible();
+  expect(overlaps((await pop.boundingBox())!, (await page.getByTestId('toast').boundingBox())!)).toBe(false);
+
+  // Manual layout closes it, so the move handles stay free.
+  await page.evaluate(() => localStorage.setItem('sambungdulur.manualInfoSeen', '1'));
+  await page.getByTestId('btn-manual').click();
+  await expect(page.getByTestId('manual-bar')).toBeVisible();
+  await expect(pop).toHaveCount(0);
+  await page.getByTestId('manual-cancel').click();
+  await expect(pop).toBeVisible();
 });
 
 test('cards have an action menu: right-click, the ⋯ button and double-click to edit', async ({ page }) => {
@@ -920,6 +1000,11 @@ test('no serious accessibility violations: main view, dark theme, dialog and car
   await fresh(page);
   await stableBox(card(page, 'Me').locator('.card-bg'));
   expect(await seriousA11yIssues(page), 'main view').toEqual([]);
+  await expect(page.getByTestId('editor-popup')).toBeVisible();
+  await page.getByTestId('editor-popup').getByTestId('edit-person').click();
+  await expect(page.getByTestId('edit-form')).toBeVisible();
+  expect(await seriousA11yIssues(page), 'editor pop-up, editing').toEqual([]);
+  await page.getByRole('button', { name: 'Cancel' }).click();
   await page.getByTestId('btn-export').click();
   await expect(page.getByTestId('export-dialog')).toBeVisible();
   expect(await seriousA11yIssues(page), 'export dialog').toEqual([]);
@@ -986,6 +1071,7 @@ test('first-visit tips appear once, are worded for the device and can be dismiss
   await fresh(page, 'en', { onboarding: true });
   const tips = page.getByTestId('onboarding');
   await expect(tips).toContainText('Right-click a card');
+  await expect(tips).toContainText('its editor opens right next to the card');
   await expect(tips).toContainText('Press ?');
   await page.getByTestId('onboarding-ok').click();
   await expect(tips).toBeHidden();
@@ -1085,13 +1171,13 @@ test('one icon per action across toolbar, panel, card menu and shortcut list; ac
   // Person actions: the editor panel and the card menu draw the same icons.
   const panelIcons: Record<string, string> = {};
   for (const id of ['add-parents', 'add-sibling', 'add-partner', 'add-child', 'focus-person', 'delete-person']) {
-    panelIcons[id] = await pathsOf(page.getByTestId('sidebar').getByTestId(id));
+    panelIcons[id] = await pathsOf(page.getByTestId('editor-popup').getByTestId(id));
   }
   await card(page, 'My Father').locator('.card-bg').click({ button: 'right', force: true });
   const menuIds: Record<string, string> = { 'add-parents': 'pm-addParents', 'add-sibling': 'pm-addSibling', 'add-partner': 'pm-addPartner', 'add-child': 'pm-addChild', 'focus-person': 'pm-focus', 'delete-person': 'pm-delete' };
   for (const [panel, menu] of Object.entries(menuIds)) expect(await pathsOf(page.getByTestId(menu)), menu).toBe(panelIcons[panel]);
   await expect(iconOf(page.getByTestId('pm-edit'))).toHaveAttribute('data-icon', 'edit');
-  await expect(iconOf(page.getByTestId('sidebar').getByTestId('edit-person'))).toHaveAttribute('data-icon', 'edit');
+  await expect(iconOf(page.getByTestId('editor-popup').getByTestId('edit-person'))).toHaveAttribute('data-icon', 'edit');
   await page.keyboard.press('Escape');
 
   // The shortcut list uses the toolbar's icons.
