@@ -340,8 +340,11 @@ test('header toolbar never overflows at common widths and in every language', as
     await page.evaluate((l) => localStorage.setItem('sambungdulur.lang', l), lang);
     await page.reload();
     await expect(page.getByTestId('tree-canvas')).toBeVisible();
-    for (const width of [1100, 1280, 1366, 1440, 1536, 1600, 1700, 1920, 2560]) {
+    for (const width of [360, 390, 412, 768, 820, 1024, 1080, 1100, 1280, 1366, 1440, 1536, 1600, 1700, 1920, 2560]) {
       await page.setViewportSize({ width, height: 900 });
+      const layout = width <= 760 ? 'narrow' : width >= 1100 ? 'wide' : 'medium';
+      await expect(page.locator('html')).toHaveAttribute('data-layout', layout);
+      await expect(page.getByTestId('status-chip'), 'save status visible at ' + width).toBeVisible();
       const m = await page.evaluate(() => {
         const bar = document.querySelector('.toolbar')!;
         const header = document.querySelector('.header')!;

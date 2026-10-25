@@ -27,6 +27,7 @@ import { ExportDialog } from './ui/ExportDialog';
 import { OpenDialog, type OpenReport } from './ui/OpenDialog';
 import { GUIDE_URL } from './links';
 import { initialLang, LANG_KEY, setLang as setI18nLang, t, type Lang } from './i18n';
+import { getViewport, useViewport } from './ui/viewport';
 
 type Dialog =
   | null
@@ -87,7 +88,14 @@ export default function App() {
   const [doc, setDocState] = useState<TreeDoc | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mediaUrls, setMediaUrls] = useState<Map<string, string>>(new Map());
-  const [sidebarHidden, setSidebarHidden] = useState(() => window.innerWidth <= 760);
+  const viewport = useViewport();
+  const narrow = viewport.layout === 'narrow';
+  const wide = viewport.layout === 'wide';
+  useEffect(() => {
+    document.documentElement.dataset.layout = viewport.layout;
+    document.documentElement.dataset.pointer = viewport.pointer;
+  }, [viewport.layout, viewport.pointer]);
+  const [sidebarHidden, setSidebarHidden] = useState(() => getViewport().layout === 'narrow');
   const [popover, setPopover] = useState<null | 'settings' | 'search' | 'more'>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [toast, setToast] = useState<{ text: string; kind?: 'info' | 'error' } | null>(null);
@@ -114,7 +122,7 @@ export default function App() {
       const initial = withDefaults(d ?? createDefaultTree());
       setDocState(initial);
       // The original selects the root person on load; do the same so the editor is populated.
-      if (window.innerWidth > 760) setSelectedId(initial.persons[initial.focusId] ? initial.focusId : initial.order[0] ?? null);
+      if (getViewport().layout !== 'narrow') setSelectedId(initial.persons[initial.focusId] ? initial.focusId : initial.order[0] ?? null);
       if (d) setDirty(localStorage.getItem('sambungdulur.dirty') === '1');
     })();
     const onPrompt = (e: Event) => {
@@ -480,7 +488,7 @@ export default function App() {
             <circle cx="23" cy="22" r="3.2" fill="none" stroke="var(--male)" strokeWidth="2" />
             <path d="M16 12.5V16M9 18.6V16H23V18.6" fill="none" stroke="var(--dim)" strokeWidth="1.6" strokeLinecap="round" />
           </svg>
-          <span className="hide-mobile">SambungDulur</span>
+          {!narrow && <span>SambungDulur</span>}
           <small>{t('offline')}</small>
         </div>
         <input
@@ -490,8 +498,13 @@ export default function App() {
           onChange={(e) => setDoc({ ...doc, title: e.target.value })}
           data-testid="tree-title"
         />
-        <span className={`status-chip${dirty ? ' dirty' : ''}`} title={t('savedHint')}>
-          {dirty ? t('unsaved') : t('saved')} · {t('people', { n: doc.order.length })}
+        <span
+          className={`status-chip${dirty ? ' dirty' : ''}`}
+          title={t('savedHint')}
+          aria-label={`${dirty ? t('unsaved') : t('saved')} · ${t('people', { n: doc.order.length })}`}
+          data-testid="status-chip"
+        >
+          {narrow ? (dirty ? '●' : '✓') : `${dirty ? t('unsaved') : t('saved')} · ${t('people', { n: doc.order.length })}`}
         </span>
         <div className="spacer" />
         <nav className="toolbar" aria-label={t('treeTools')}>
@@ -504,44 +517,49 @@ export default function App() {
           <button className="tool-btn keep-label primary" onClick={() => setDialog({ kind: 'export' })} data-testid="btn-export" title={t('export')}>
             <Download size={18} /> <span className="label">{t('export')}</span>
           </button>
-          <span className="tool-sep hide-mobile" />
+          {!narrow && <span className="tool-sep" />}
           <button className={`tool-btn${popover === 'search' ? ' active' : ''}`} onClick={() => setPopover(popover === 'search' ? null : 'search')} data-testid="btn-search" title={t('searchTitle')}>
             <Search size={18} /> <span className="label">{t('search')}</span>
           </button>
-          <span className="hide-mobile">
-            <GenerationControl settings={doc.settings} onChange={patchSettings} />
-          </span>
-          <span className="hide-mobile header-lang">
-            <LanguageSelect lang={lang} onChange={changeLang} />
-          </span>
+          {wide && <GenerationControl settings={doc.settings} onChange={patchSettings} />}
+          {wide && (
+            <span className="header-lang">
+              <LanguageSelect lang={lang} onChange={changeLang} />
+            </span>
+          )}
           <button className={`tool-btn${popover === 'settings' ? ' active' : ''}`} onClick={() => setPopover(popover === 'settings' ? null : 'settings')} data-testid="btn-settings" title={t('treeSettings')}>
             <Settings2 size={18} /> <span className="label">{t('treeSettings')}</span>
           </button>
-          <button className={`tool-btn hide-mobile${manualMode ? ' active' : ''}`} onClick={toggleManual} data-testid="btn-manual" title={t('manualLayout')}>
-            <LayoutTemplate size={18} /> <span className="label">{t('manualLayout')}</span>
-          </button>
-          <button className="tool-btn hide-mobile" onClick={() => setDialog({ kind: 'confirmReset' })} data-testid="btn-reset" title={t('resetTree')}>
-            <RotateCcw size={18} /> <span className="label">{t('reset')}</span>
-          </button>
-          <button
-            className="tool-btn hide-mobile"
-            onClick={() => patchSettings({ theme: doc.settings.theme === 'light' ? 'dark' : 'light' })}
-            data-testid="btn-theme"
-            title={t('toggleTheme')}
-          >
-            {doc.settings.theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
-          </button>
-          <a className="tool-btn hide-mobile" href={GUIDE_URL} target="_blank" rel="noopener noreferrer" title={t('helpTitle')} aria-label={t('helpTitle')} data-testid="btn-help">
-            <CircleHelp size={18} />
-          </a>
-          {installEvt && (
-            <button className="tool-btn hide-mobile" onClick={() => installEvt.prompt().then(() => setInstallEvt(null))} title={t('installApp')}>
-              <MonitorDown size={18} /> <span className="label">{t('install')}</span>
+          {wide ? (
+            <>
+              <button className={`tool-btn${manualMode ? ' active' : ''}`} onClick={toggleManual} data-testid="btn-manual" title={t('manualLayout')}>
+                <LayoutTemplate size={18} /> <span className="label">{t('manualLayout')}</span>
+              </button>
+              <button className="tool-btn" onClick={() => setDialog({ kind: 'confirmReset' })} data-testid="btn-reset" title={t('resetTree')}>
+                <RotateCcw size={18} /> <span className="label">{t('reset')}</span>
+              </button>
+              <button
+                className="tool-btn"
+                onClick={() => patchSettings({ theme: doc.settings.theme === 'light' ? 'dark' : 'light' })}
+                data-testid="btn-theme"
+                title={t('toggleTheme')}
+              >
+                {doc.settings.theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+              </button>
+              <a className="tool-btn" href={GUIDE_URL} target="_blank" rel="noopener noreferrer" title={t('helpTitle')} aria-label={t('helpTitle')} data-testid="btn-help">
+                <CircleHelp size={18} />
+              </a>
+              {installEvt && (
+                <button className="tool-btn" onClick={() => installEvt.prompt().then(() => setInstallEvt(null))} title={t('installApp')}>
+                  <MonitorDown size={18} /> <span className="label">{t('install')}</span>
+                </button>
+              )}
+            </>
+          ) : (
+            <button className={`tool-btn${popover === 'more' ? ' active' : ''}`} onClick={() => setPopover(popover === 'more' ? null : 'more')} data-testid="btn-more" aria-label={t('moreTools')} title={t('moreTools')}>
+              <MoreHorizontal size={18} />
             </button>
           )}
-          <button className="tool-btn only-mobile" onClick={() => setPopover(popover === 'more' ? null : 'more')} data-testid="btn-more" aria-label={t('moreTools')}>
-            <MoreHorizontal size={18} />
-          </button>
         </nav>
       </header>
 
@@ -584,7 +602,7 @@ export default function App() {
           onScale={setScale}
           onSelect={(id) => {
             setSelectedId(id);
-            if (id && window.innerWidth <= 760) setSidebarHidden(false);
+            if (id && narrow) setSidebarHidden(false);
           }}
           onAction={onCardAction}
           onDragPerson={(id, delta, done) => {
@@ -615,7 +633,7 @@ export default function App() {
             {t('shown', { n: visible.gen.size, total: doc.order.length })}
             {comps > 1 ? ` · ${t('groups', { n: comps })}` : ''}
           </span>
-          <span className="hide-mobile">{t('focus', { name: displayName(doc.persons[focusId], doc.settings) })}</span>
+          {!narrow && <span>{t('focus', { name: displayName(doc.persons[focusId], doc.settings) })}</span>}
           <span><span className="legend-dot" style={{ borderColor: 'var(--male)' }} />M</span>
           <span><span className="legend-dot" style={{ borderColor: 'var(--female)' }} />F</span>
           <span><span className="legend-dot" style={{ borderColor: 'var(--other)', borderStyle: 'dashed' }} />?</span>
@@ -647,11 +665,11 @@ export default function App() {
                 setSelectedId(id);
                 canvas.current?.centerOn(id, 1);
               } else focusOn(id);
-              if (window.innerWidth <= 760) setSidebarHidden(false);
+              if (narrow) setSidebarHidden(false);
             }}
           />
         )}
-        {popover === 'more' && (
+        {popover === 'more' && !wide && (
           <div className="popover" data-testid="more-menu">
             <div className="form">
               <GenerationControl settings={doc.settings} onChange={patchSettings} />

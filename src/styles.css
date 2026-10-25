@@ -267,7 +267,9 @@ hr.sep { border: 0; border-top: 1px solid var(--panel-border); margin: 2px 0; wi
 .gallery .missing { display: grid; place-items: center; font-size: 10px; color: var(--dim); font-family: var(--font-mono); padding: 4px; text-align: center; word-break: break-all; }
 .report { font-family: var(--font-mono); font-size: 12px; background: var(--hover); border-radius: 10px; padding: 10px; white-space: pre-wrap; max-height: 220px; overflow: auto; }
 
-/* ---- Mobile ---- */
+/* ---- Responsive ----
+   Width classes come from one place (ui/viewport.ts) and are mirrored on <html data-layout data-pointer>,
+   so portalled popups (dialogs, menus) follow the same rules as the app shell. */
 .only-mobile { display: none; }
 /* Secondary tools are icon-only (tooltips carry the name): Indonesian/Javanese labels are long
    and overflowed the header even at 1920px. */
@@ -275,34 +277,36 @@ hr.sep { border: 0; border-top: 1px solid var(--panel-border); margin: 2px 0; wi
 @media (max-width: 2300px) {
   .gen-control .lbl { display: none; }
 }
+/* Labels of the primary actions need more room than the first wide pixel offers. */
 @media (max-width: 1100px) {
   .tool-btn .label { display: none; }
-  .tool-btn { padding: 0 9px; }
 }
-@media (max-width: 760px) {
-  :root { --header-h: 52px; }
-  .only-mobile { display: initial; }
-  .hide-mobile { display: none !important; }
-  .brand small, .status-chip { display: none; }
-  .header { gap: 6px; padding: 0 8px; }
-  /* The title yields space so every toolbar button stays on screen. */
-  .title-input { flex: 1 1 0; min-width: 0; max-width: none; font-size: 13px; padding: 6px 4px; }
-  .spacer { display: none; }
-  .toolbar { flex: none; overflow: visible; gap: 2px; }
-  .tool-btn { padding: 0 8px; }
-  .sidebar {
-    position: absolute; left: 0; right: 0; bottom: 0; width: auto; max-height: 62%; border-right: 0;
-    border-top: 1px solid var(--panel-border); border-radius: 16px 16px 0 0; box-shadow: var(--shadow); transition: transform 0.22s ease;
-  }
-  .sidebar.hidden { margin-left: 0; transform: translateY(calc(100% - 44px)); }
-  .sidebar-grip { display: flex !important; }
-  .sidebar-handle { display: none; }
-  .zoom-controls { bottom: calc(44px + 14px); }
-  .view-info { bottom: calc(44px + 14px); max-width: calc(100% - 80px); }
-  .settings-grid { grid-template-columns: 1fr; }
-  .modal { padding: 16px; }
-  .popover { left: 8px; right: 8px; width: auto; }
+html:not([data-layout='wide']) .tool-btn .label { display: none; }
+html:not([data-layout='wide']) .tool-btn { padding: 0 9px; }
+html:not([data-layout='wide']) .brand small { display: none; }
+html[data-layout='medium'] .title-input { flex: 1 1 120px; max-width: 240px; }
+html[data-layout='narrow'] { --header-h: 52px; }
+html[data-layout='narrow'] .only-mobile { display: initial; }
+html[data-layout='narrow'] .hide-mobile { display: none !important; }
+html[data-layout='narrow'] .header { gap: 6px; padding: 0 8px; }
+/* The title yields space so every toolbar button stays on screen. */
+html[data-layout='narrow'] .title-input { flex: 1 1 0; min-width: 0; max-width: none; font-size: 13px; padding: 6px 4px; }
+html[data-layout='narrow'] .status-chip { flex: none; padding: 3px 6px; }
+html[data-layout='narrow'] .spacer { display: none; }
+html[data-layout='narrow'] .toolbar { flex: none; overflow: visible; gap: 2px; }
+html[data-layout='narrow'] .tool-btn { padding: 0 8px; }
+html[data-layout='narrow'] .sidebar {
+  position: absolute; left: 0; right: 0; bottom: 0; width: auto; max-height: 62%; border-right: 0;
+  border-top: 1px solid var(--panel-border); border-radius: 16px 16px 0 0; box-shadow: var(--shadow); transition: transform 0.22s ease;
 }
+html[data-layout='narrow'] .sidebar.hidden { margin-left: 0; transform: translateY(calc(100% - 44px)); }
+html[data-layout='narrow'] .sidebar-grip { display: flex !important; }
+html[data-layout='narrow'] .sidebar-handle { display: none; }
+html[data-layout='narrow'] .zoom-controls { bottom: calc(44px + 14px); }
+html[data-layout='narrow'] .view-info { bottom: calc(44px + 14px); max-width: calc(100% - 80px); }
+html[data-layout='narrow'] .settings-grid { grid-template-columns: 1fr; }
+html[data-layout='narrow'] .modal { padding: 16px; }
+html[data-layout='narrow'] .popover { left: 8px; right: 8px; width: auto; }
 .sidebar-grip {
   display: none; align-items: center; justify-content: center; gap: 8px; height: 44px; flex: none; border: 0; background: transparent;
   color: var(--muted); font-weight: 600; font-size: 13.5px; width: 100%;
