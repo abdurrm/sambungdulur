@@ -59,6 +59,7 @@ body {
 }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
+[hidden] { display: none !important; }
 .mono { font-family: var(--font-mono); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
@@ -209,7 +210,6 @@ hr.sep { border: 0; border-top: 1px solid var(--panel-border); margin: 2px 0; wi
 
 /* ---- Forms ---- */
 .form { display: flex; flex-direction: column; gap: 10px; }
-.form[hidden] { display: none; }
 .field { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted); font-weight: 550; }
 .field input[type='text'], .field input[type='search'], .field select, .field textarea, .input {
   border: 1px solid var(--panel-border); background: var(--input-bg); border-radius: 9px; padding: 9px 10px; font-size: 14px; color: var(--text); width: 100%;
@@ -380,9 +380,9 @@ html[data-layout='narrow'] .popover { width: 100%; max-height: min(78dvh, calc(1
 }
 .sheet[data-swiping] { transition-duration: 0ms; }
 .sheet[data-starting-style] { transform: translateY(100%); }
-.sheet-drag { flex: none; position: relative; padding-top: 8px; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
+.sheet-drag { flex: none; position: relative; padding-top: 6px; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
 .sheet-handle { width: 40px; height: 4px; border-radius: 4px; background: var(--panel-border); margin: 0 auto; }
-.sheet .sidebar-grip { display: flex; position: relative; height: 40px; }
+.sheet .sidebar-grip { display: flex; position: relative; height: 44px; }
 .sheet .sidebar-grip::before { display: none; }
 .sheet-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
 .sheet[data-snap='bar'] .sheet-body { visibility: hidden; }
@@ -403,3 +403,34 @@ html[data-layout='narrow'] .popover { width: 100%; max-height: min(78dvh, calc(1
 .menu-text { display: flex; flex-direction: column; gap: 1px; }
 .menu-reason { font-size: 11px; font-weight: 500; color: var(--dim); }
 .card-menu-positioner { z-index: 70; }
+
+/* ---- Touch screens: every control is at least 44 × 44 px (WCAG 2.5.5) ---- */
+.save-badge { position: absolute; top: 7px; right: 7px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); border: 1.5px solid var(--panel-solid); }
+.save-badge.dirty { background: #f59e0b; }
+.tool-btn { position: relative; }
+html[data-pointer='coarse'] .tool-btn { height: 44px; min-width: 44px; justify-content: center; }
+html[data-layout='narrow'] .tool-btn { padding: 0 6px; }
+html[data-layout='narrow'] .toolbar { gap: 0; }
+html[data-pointer='coarse'] .title-input { min-height: 44px; }
+html[data-pointer='coarse'] .btn { min-height: 44px; }
+html[data-pointer='coarse'] .tab { min-height: 44px; }
+html[data-pointer='coarse'] .fab { width: 44px; height: 44px; }
+html[data-pointer='coarse'] .card-more { width: 44px; height: 44px; font-size: 20px; }
+html[data-pointer='coarse'] .gen-control { height: auto; }
+html[data-pointer='coarse'] .gen-control button { width: 44px; height: 44px; font-size: 16px; }
+html[data-pointer='coarse'] .field input[type='text'], html[data-pointer='coarse'] .field input[type='search'],
+html[data-pointer='coarse'] .field select, html[data-pointer='coarse'] .input { min-height: 44px; }
+html[data-pointer='coarse'] .check, html[data-pointer='coarse'] .radio-row label, html[data-pointer='coarse'] .switch { min-height: 44px; }
+html[data-pointer='coarse'] .seg button { min-height: 44px; min-width: 44px; }
+html[data-pointer='coarse'] .note-link, html[data-pointer='coarse'] .link-btn { min-height: 44px; display: inline-flex; align-items: center; }
+html[data-pointer='coarse'] .search-results li { min-height: 48px; }
+html[data-pointer='coarse'] .choice { min-height: 56px; }
+.gen-chip {
+  font: inherit; font-family: var(--font-mono); font-size: 12px; color: var(--text); font-weight: 600; background: var(--hover);
+  border: 1px solid var(--panel-border); border-radius: 8px; padding: 0 10px; height: 32px;
+}
+html[data-pointer='coarse'] .gen-chip { min-height: 44px; min-width: 44px; }
+.popover.gen-popover { width: min(380px, calc(100vw - 20px)); }
+/* Zoom buttons and the view info sit above the sheet's bar and the phone's safe area. */
+html[data-layout='narrow'] .zoom-controls { bottom: calc(56px + 12px + env(safe-area-inset-bottom, 0px)); right: calc(10px + env(safe-area-inset-right, 0px)); }
+html[data-layout='narrow'] .view-info { bottom: calc(56px + 12px + env(safe-area-inset-bottom, 0px)); left: calc(10px + env(safe-area-inset-left, 0px)); padding: 4px 8px; }

@@ -12,6 +12,13 @@ import { t as tx } from '../i18n';
 import type { MenuAnchor } from './PersonMenu';
 
 const LONG_PRESS_MS = 500;
+/** 22 screen px radius in layout units, capped at 50 % zoom so press areas never swallow neighbouring cards.
+ *  Snapped to coarse steps so zooming does not re-render every card on every frame. */
+function hitRadiusFor(k: number): number {
+  const want = Math.min(44, Math.max(10, 22 / k));
+  const step = 1.15;
+  return +(10 * Math.pow(step, Math.ceil(Math.log(want / 10) / Math.log(step)))).toFixed(1);
+}
 const pointAnchor = (x: number, y: number): MenuAnchor => ({ getBoundingClientRect: () => new DOMRect(x, y, 0, 0) });
 
 export const ZOOM_MIN = 0.05;
@@ -51,6 +58,8 @@ interface Props {
   inset?: CanvasInset;
   /** Open the person action menu (right-click, long-press, or the ⋯ button on the selected card). */
   onCardMenu?: (personId: string, anchor: MenuAnchor) => void;
+  /** Touch screen: card buttons get a press area of at least 44 screen px (down to 50 % zoom). */
+  coarsePointer?: boolean;
   /** Double-click on a card: edit that person. */
   onEditRequest?: (personId: string) => void;
 }
@@ -283,6 +292,7 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
         manualMode={props.manualMode}
         trace={props.doc.settings.traceAnimation}
         transform={t.toString()}
+        hitRadius={props.coarsePointer ? hitRadiusFor(t.k) : undefined}
       />
       {selectedNode && props.onCardMenu && !props.manualMode && (
         <button

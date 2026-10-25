@@ -144,7 +144,7 @@ export default function App() {
     if (getViewport().layout === 'medium') setDrawerOpen(!hidden);
     else setPanel((p) => ({ ...p, hidden }));
   };
-  const [popover, setPopover] = useState<null | 'settings' | 'search' | 'more'>(null);
+  const [popover, setPopover] = useState<null | 'settings' | 'search' | 'more' | 'gens'>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [cardMenu, setCardMenu] = useState<{ id: string; anchor: MenuAnchor } | null>(null);
   const [editRequest, setEditRequest] = useState<{ id: string; n: number } | null>(null);
@@ -583,13 +583,14 @@ export default function App() {
     setToast({ text: t('toastManualSaved') });
   };
 
+  const statusText = `${dirty ? t('unsaved') : t('saved')} · ${t('people', { n: doc.order.length })}`;
   const missingMedia = Object.values(doc.media).filter((m) => !m.available).length;
   const comps = doc.order.length > 1 && visible.hiddenCount > 0 ? components(doc).length : 1;
 
   return (
     <div className="app">
       <header className="header">
-        <div className="brand">
+        <div className="brand" hidden={narrow}>
           <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
             <rect x="1" y="1" width="30" height="30" rx="8" fill="none" stroke="var(--accent)" strokeWidth="2" />
             <circle cx="16" cy="9" r="3.2" fill="none" stroke="var(--male)" strokeWidth="2" />
@@ -607,21 +608,31 @@ export default function App() {
           onChange={(e) => setDoc({ ...doc, title: e.target.value })}
           data-testid="tree-title"
         />
-        <span
-          className={`status-chip${dirty ? ' dirty' : ''}`}
-          title={t('savedHint')}
-          aria-label={`${dirty ? t('unsaved') : t('saved')} · ${t('people', { n: doc.order.length })}`}
-          data-testid="status-chip"
-        >
-          {narrow ? (dirty ? '●' : '✓') : `${dirty ? t('unsaved') : t('saved')} · ${t('people', { n: doc.order.length })}`}
-        </span>
+        {!narrow && (
+          <span
+            className={`status-chip${dirty ? ' dirty' : ''}`}
+            title={t('savedHint')}
+            aria-label={statusText}
+            data-testid="status-chip"
+          >
+            {statusText}
+          </span>
+        )}
         <div className="spacer" />
         <nav className="toolbar" aria-label={t('treeTools')}>
           <button className="tool-btn keep-label" onClick={() => setDialog({ kind: 'open' })} data-testid="btn-open" title={t('openTitle')}>
             <FolderOpen size={18} /> <span className="label">{t('open')}</span>
           </button>
-          <button className="tool-btn keep-label" onClick={saveFile} data-testid="btn-save" title={t('saveTitle')}>
+          <button
+            className="tool-btn keep-label"
+            onClick={saveFile}
+            data-testid="btn-save"
+            title={narrow ? `${t('saveTitle')} (${statusText})` : t('saveTitle')}
+            aria-label={narrow ? `${t('save')} · ${statusText}` : undefined}
+          >
             <Save size={18} /> <span className="label">{t('save')}</span>
+            {/* Phones: the save status rides on the Save button instead of a separate chip. */}
+            {narrow && <span className={`save-badge${dirty ? ' dirty' : ''}`} data-testid="status-chip" aria-hidden="true" />}
           </button>
           <button className="tool-btn keep-label primary" onClick={() => setDialog({ kind: 'export' })} data-testid="btn-export" title={t('export')}>
             <Download size={18} /> <span className="label">{t('export')}</span>
@@ -771,6 +782,7 @@ export default function App() {
             else if (viewport.layout === 'medium') setDrawerOpen(!!id);
           }}
           onAction={onCardAction}
+          coarsePointer={viewport.pointer === 'coarse'}
           onCardMenu={(id, anchor) => setCardMenu({ id, anchor })}
           onEditRequest={(id) => doAction('edit', id)}
           onDragPerson={(id, delta, done) => {
@@ -797,6 +809,28 @@ export default function App() {
         )}
 
         <div className="view-info" data-testid="view-info">
+          {narrow && (
+            <Suspense fallback={null}>
+              <ToolPopover
+                open={popover === 'gens'}
+                onOpenChange={(o) => setPopover(o ? 'gens' : null)}
+                label={t('generationsShown')}
+                testId="gen-popover"
+                className="gen-popover"
+                trigger={
+                  <button className="gen-chip" data-testid="gen-chip" aria-label={t('generationsShown')}>
+                    ▲{doc.settings.ancestorGenerations < 0 ? t('all') : doc.settings.ancestorGenerations} ▼
+                    {doc.settings.descendantGenerations < 0 ? t('all') : doc.settings.descendantGenerations}
+                  </button>
+                }
+              >
+                <div className="field">
+                  {t('generationsHelp')}
+                  <GenerationControl settings={doc.settings} onChange={patchSettings} compact />
+                </div>
+              </ToolPopover>
+            </Suspense>
+          )}
           <span>
             {t('shown', { n: visible.gen.size, total: doc.order.length })}
             {comps > 1 ? ` · ${t('groups', { n: comps })}` : ''}

@@ -688,3 +688,73 @@ test('long-press on a card opens its action menu without panning @mobile', async
   await expect(persons(page)).toHaveCount(4);
 
 });
+
+/** Interactive elements that are visible and not covered: each must offer a 44 × 44 px target. */
+async function smallTargets(page: Page) {
+  return page.evaluate(() => {
+    const sel = 'button, a[href], input, select, textarea, [role="button"], [role="tab"], [role="menuitem"], [role="separator"][tabindex]';
+    const out: string[] = [];
+    for (const el of document.querySelectorAll<HTMLElement | SVGElement>(sel)) {
+      const target = (el instanceof HTMLInputElement && (el.type === 'checkbox' || el.type === 'radio') ? el.closest('label') : el) ?? el;
+      // SVG card buttons are measured by their (invisible) press area.
+      const hit = el.querySelector?.('.card-hit') ?? target;
+      const r = (hit as Element).getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      const cs = getComputedStyle(target as Element);
+      if (cs.visibility === 'hidden' || (el as HTMLElement).closest?.('[hidden],.sr-only')) continue;
+      if (r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) continue;
+      const cx = Math.min(innerWidth - 1, Math.max(0, r.left + r.width / 2)), cy = Math.min(innerHeight - 1, Math.max(0, r.top + r.height / 2));
+      const top = document.elementFromPoint(cx, cy);
+      if (top && !(hit as Element).contains(top) && !target.contains(top) && !el.contains(top)) continue; // covered by a sheet or popup
+      if (r.width < 43.5 || r.height < 43.5) {
+        const name = el.getAttribute('aria-label') || el.getAttribute('data-testid') || el.textContent?.trim().slice(0, 30) || el.tagName;
+        out.push(`${name} ${Math.round(r.width)}×${Math.round(r.height)}`);
+      }
+    }
+    return out;
+  });
+}
+
+test('every visible control offers a 44 px touch target @mobile', async ({ page }) => {
+  await fresh(page);
+  await expect(page.getByTestId('btn-more')).toBeEnabled();
+  expect(await smallTargets(page), 'main view').toEqual([]);
+
+  await card(page, 'Me').locator('.card-bg').tap({ position: { x: 20, y: 20 } });
+  await expect(page.getByTestId('sidebar')).toHaveAttribute('data-snap', 'half');
+  await page.waitForTimeout(450);
+  expect(await smallTargets(page), 'half sheet').toEqual([]);
+
+  await page.getByTestId('edit-person').tap();
+  await expect(page.getByTestId('edit-form')).toBeVisible();
+  await page.waitForTimeout(450);
+  expect(await smallTargets(page), 'edit form').toEqual([]);
+  await page.getByRole('button', { name: 'Cancel' }).tap();
+
+  await page.getByTestId('btn-settings').tap();
+  await expect(page.getByTestId('settings-menu')).toBeVisible();
+  expect(await smallTargets(page), 'settings').toEqual([]);
+});
+
+test('card buttons stay easy to tap from 50 % to 200 % zoom @mobile', async ({ page }) => {
+  await fresh(page);
+  const zoomPct = async () => parseInt((await page.getByTestId('view-info').textContent())!.match(/(\d+)%/)![1]);
+  const hitSizes = () => page.locator('.card-btn .card-hit').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().width));
+  // Down to about 50 %.
+  for (let i = 0; i < 10 && (await zoomPct()) > 52; i++) await page.getByTestId('btn-zoom-out').tap();
+  expect(await zoomPct()).toBeLessThanOrEqual(52);
+  const atHalf = await hitSizes();
+  expect(atHalf.length).toBeGreaterThan(0);
+  for (const w of atHalf) expect(w).toBeGreaterThanOrEqual(43.5);
+  // Up to 200 %.
+  for (let i = 0; i < 20 && (await zoomPct()) < 200; i++) await page.getByTestId('btn-zoom-in').tap();
+  for (const w of await hitSizes()) expect(w).toBeGreaterThanOrEqual(43.5);
+});
+
+test('generation control is one tap away on phones @mobile', async ({ page }) => {
+  await fresh(page);
+  await page.getByTestId('gen-chip').tap();
+  await expect(page.getByTestId('gen-popover')).toBeVisible();
+  await page.getByTestId('gen-popover').getByTestId('gen-down-minus').tap(); // All -> 10
+  await expect(page.getByTestId('gen-chip')).toContainText('10');
+});

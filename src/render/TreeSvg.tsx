@@ -28,6 +28,8 @@ export interface TreeSvgProps {
   background?: boolean;
   padding?: number;
   legend?: boolean;
+  /** Radius (layout units) of the invisible press area around card buttons; set on touch screens. */
+  hitRadius?: number;
   /** Wrap content in a <g> with this transform (canvas zoom). */
   transform?: string;
   title?: string;
@@ -53,6 +55,7 @@ function Card(props: {
   canCollapseDown: boolean;
   interactive: boolean;
   manualMode: boolean;
+  hitRadius?: number;
 }) {
   const { n, doc, pal, density, url, selected, lit, matched } = props;
   const p = doc.persons[n.id];
@@ -164,6 +167,8 @@ function Card(props: {
       out.push(
         <g key={key} className="card-btn" data-action={action} data-person-id={n.id} role="button" aria-label={title}>
           <title>{title}</title>
+          {/* Touch screens: an invisible, larger press area around the small visible button. */}
+          {props.hitRadius && props.hitRadius > 10 && <circle className="card-hit" cx={cx} cy={cy} r={props.hitRadius} fill="transparent" pointerEvents="all" />}
           <circle cx={cx} cy={cy} r={10} fill={pal.card} stroke={pal.handle} strokeWidth={1.4} />
           <text x={cx} y={cy} dy="0.35em" textAnchor="middle" fontFamily={FONT_MONO} fontSize={12} fill={pal.handle}>
             {label}
@@ -249,6 +254,7 @@ export function TreeSvg(props: TreeSvgProps) {
             canCollapseDown={!!props.collapsibleDown?.has(n.id)}
             interactive={!!props.interactive}
             manualMode={!!props.manualMode}
+            hitRadius={props.hitRadius}
           />
         ))}
       </g>

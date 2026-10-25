@@ -144,7 +144,7 @@ function DateInput(props: { label: string; value: string; onChange: (v: string) 
           ))}
         </select>
       </div>
-      <button type="button" className="note" style={{ border: 0, background: 'none', textAlign: 'left', padding: 0, color: 'var(--info)' }} onClick={() => setFree(true)}>
+      <button type="button" className="note link-btn" style={{ border: 0, background: 'none', textAlign: 'left', padding: 0, color: 'var(--info)' }} onClick={() => setFree(true)}>
         {t('approxDate')}
       </button>
     </div>
