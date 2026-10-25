@@ -461,7 +461,7 @@ kbd {
 .shortcut-groups { display: flex; flex-direction: column; gap: 12px; max-height: min(56dvh, 520px); overflow: auto; }
 .shortcut-group h4 { margin: 0 0 2px; }
 .menu-hint + .menu-kbd { margin-left: 8px; }
-.menu-kbd { margin-left: auto; padding-left: 12px; font-family: var(--font-mono); font-size: 11.5px; color: var(--dim); }
+.menu-kbd { margin-left: auto; padding-left: 12px; font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); }
 html[data-pointer='coarse'] .menu-kbd, html[data-pointer='coarse'] .only-keyboard { display: none; }
 .shortcut-label { display: inline-flex; align-items: center; gap: 8px; }
 .shortcut-label svg, .icon-gap { flex: none; width: 16px; color: var(--dim); }

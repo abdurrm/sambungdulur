@@ -1235,9 +1235,9 @@ test('Ctrl+H, F1 and ? open the grouped shortcut list; the filter narrows it, in
   await expect(list.getByTestId('shortcut-zoomOut')).toBeVisible();
   await expect(list.getByTestId('shortcut-save')).toHaveCount(0);
   await expect(list.getByTestId('shortcut-group-file')).toHaveCount(0);
-  await list.getByTestId('shortcuts-filter').fill('ctrl+e');
+  await list.getByTestId('shortcuts-filter').fill('ctrl+o');
   await expect(list.locator('tr')).toHaveCount(1);
-  await expect(list.getByTestId('shortcut-export')).toBeVisible();
+  await expect(list.getByTestId('shortcut-open')).toBeVisible();
   await list.getByTestId('shortcuts-filter').fill('qwerty');
   await expect(list.getByTestId('shortcuts-none')).toBeVisible();
   await page.keyboard.press('Escape');
@@ -1788,4 +1788,130 @@ test('desktop: no camera buttons; the card menu uploads a photo, Ctrl+Z restores
   await page.getByTestId('tree-canvas').focus();
   await page.keyboard.press('Control+z');
   await expect(photo).toHaveCount(0);
+});
+
+/** Presses ] (next person in the file's list) until `name` is selected. */
+async function stepTo(page: Page, name: string) {
+  for (let i = 0; i < 10 && (await page.getByTestId('selected-name').textContent()) !== name; i++) await page.keyboard.press(']');
+  await expect(page.getByTestId('selected-name')).toHaveText(name);
+}
+
+test('person shortcuts: P S A C add relatives, F focuses, E edits, I picks a photo; unavailable ones say why', async ({ page }) => {
+  await fresh(page);
+  const canvas = page.getByTestId('tree-canvas');
+  const live = page.getByTestId('live-region');
+  await expect(page.getByTestId('selected-name')).toHaveText('Me');
+  await canvas.focus();
+  await page.keyboard.press('s');
+  await expect(persons(page)).toHaveCount(4);
+  await expect(page.getByTestId('selected-name')).toHaveText('Sibling of Me');
+  await expect(live).toContainText('Added'); // announced like a click
+  await page.keyboard.press('Home');
+  await expect(page.getByTestId('selected-name')).toHaveText('Me');
+  await page.keyboard.press('a');
+  await expect(persons(page)).toHaveCount(5);
+  await expect(page.getByTestId('selected-name')).toHaveText('Partner of Me');
+  await page.keyboard.press('Home');
+  await page.keyboard.press('c');
+  await expect(page.getByTestId('add-child-dialog')).toBeVisible();
+  // Shortcuts do nothing behind an open dialog.
+  await page.keyboard.press('s');
+  await expect(persons(page)).toHaveCount(5);
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('add-child-dialog')).toBeHidden();
+
+  // P on someone who already has parents explains why, in a toast.
+  await canvas.focus();
+  await page.keyboard.press('Home');
+  await page.keyboard.press('p');
+  await expect(page.getByTestId('toast')).toContainText('Parents already added');
+  await expect(persons(page)).toHaveCount(5);
+  await stepTo(page, 'My Father');
+  await page.keyboard.press('p');
+  await expect(persons(page)).toHaveCount(7);
+
+  // F shows the tree from the selected person; E opens the form with the first field focused.
+  await stepTo(page, 'My Father');
+  await page.keyboard.press('f');
+  await expect(page.getByTestId('view-info')).toContainText('focus: My Father');
+  await page.keyboard.press('e');
+  await expect(page.getByTestId('edit-form')).toBeVisible();
+  await expect(page.getByTestId('f-given')).toBeFocused();
+  // Typing those letters in a field never triggers anything.
+  await page.keyboard.type(' psacfiem');
+  await expect(page.getByTestId('f-given')).toHaveValue('My Father psacfiem');
+  await expect(persons(page)).toHaveCount(7);
+  await expect(page.getByTestId('edit-form')).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel' }).click();
+
+  // I opens the photo picker for the selected person.
+  await canvas.focus();
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.keyboard.press('i')]);
+  expect(chooser.isMultiple()).toBe(false);
+
+  // The reason is in the user's language.
+  await setLangViaSettings(page, 'id');
+  await canvas.focus();
+  await page.keyboard.press('Home');
+  await page.keyboard.press('p');
+  await expect(page.getByTestId('toast').filter({ hasText: 'Orang tua sudah ada' })).toBeVisible();
+});
+
+test('Home, [ and ] walk the person list; Alt+1/2/3 switch tabs; Ctrl+Enter saves the form', async ({ page }) => {
+  await fresh(page);
+  const canvas = page.getByTestId('tree-canvas');
+  const name = page.getByTestId('selected-name');
+  await canvas.focus();
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('Home');
+  await expect(name).toHaveText('Me');
+  await page.keyboard.press(']');
+  await expect(name).toHaveText('My Father');
+  await page.keyboard.press(']');
+  await expect(name).toHaveText('My Mother');
+  await page.keyboard.press(']');
+  await expect(name).toHaveText('Me'); // wraps around
+  await page.keyboard.press('[');
+  await expect(name).toHaveText('My Mother');
+  await expect(page.getByTestId('live-region')).toContainText('Selected: My Mother');
+
+  await page.keyboard.press('Alt+2');
+  await expect(page.getByTestId('biography-table')).toBeVisible();
+  await page.keyboard.press('Alt+3');
+  await expect(page.getByTestId('image-tab')).toBeVisible();
+  await page.keyboard.press('Alt+1');
+  await expect(page.getByTestId('personal-table')).toBeVisible();
+
+  // In the form: Alt+2 jumps to the Biography fields, Ctrl+Enter saves from any field.
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('f-given')).toBeFocused();
+  await page.keyboard.press('Alt+2');
+  await expect(page.getByTestId('f-profession')).toBeVisible();
+  await page.getByTestId('f-profession').fill('Guru');
+  await page.keyboard.press('Control+Enter');
+  await expect(page.getByTestId('edit-form')).toHaveCount(0);
+  await page.keyboard.press('Alt+2');
+  await expect(page.getByTestId('biography-table')).toContainText('Guru');
+});
+
+test('the card menu shows each action\'s shortcut', async ({ page }) => {
+  await fresh(page);
+  await card(page, 'My Father').locator('.card-bg').click({ button: 'right', force: true });
+  await expect(page.getByTestId('pm-edit-keys')).toHaveText('Enter / E');
+  await expect(page.getByTestId('pm-photo-keys')).toHaveText('I');
+  await expect(page.getByTestId('pm-addParents-keys')).toHaveText('P');
+  await expect(page.getByTestId('pm-addSibling-keys')).toHaveText('S');
+  await expect(page.getByTestId('pm-addPartner-keys')).toHaveText('A');
+  await expect(page.getByTestId('pm-addChild-keys')).toHaveText('C');
+  await expect(page.getByTestId('pm-focus-keys')).toHaveText('F');
+  await expect(page.getByTestId('pm-delete-keys')).toHaveText('Delete');
+  await page.keyboard.press('Escape');
+  // The shortcut list has them too, grouped under People.
+  await page.getByTestId('tree-canvas').focus();
+  await page.keyboard.press('Control+h');
+  const people = page.getByTestId('shortcut-group-person');
+  await expect(people.getByTestId('shortcut-edit')).toContainText('Enter');
+  await expect(people.getByTestId('shortcut-edit')).toContainText('E');
+  await expect(people.getByTestId('shortcut-addChild')).toContainText('C');
+  await expect(people.getByTestId('shortcut-saveForm')).toContainText(/Ctrl\+Enter/);
 });

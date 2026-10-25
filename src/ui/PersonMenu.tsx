@@ -3,6 +3,19 @@ import { Icon } from './icons';
 import type { TreeDoc } from '../model/types';
 import { displayName } from '../model/relations';
 import { personActionLabel, personActions, type PersonActionId } from '../model/personActions';
+import { shortcutText, type Command } from './shortcuts';
+
+/** The keyboard command of each action, shown on the right of its menu item. */
+const ACTION_COMMAND: Record<PersonActionId, Command> = {
+  edit: 'edit',
+  photo: 'photo',
+  addParents: 'addParents',
+  addSibling: 'addSibling',
+  addPartner: 'addPartner',
+  addChild: 'addChild',
+  focus: 'focusPerson',
+  delete: 'delete',
+};
 
 /** Anything the menu can be positioned against: the card's ⋯ button, or the pointer for right-click / long-press. */
 export type MenuAnchor = Element | { getBoundingClientRect: () => DOMRect };
@@ -49,6 +62,7 @@ export default function PersonMenu(props: {
                         {personActionLabel(id, { coarse: props.coarse })}
                         {a.reason && <small className="menu-reason" data-testid={`pm-${id}-reason`}>{a.reason}</small>}
                       </span>
+                      <kbd className="menu-kbd" data-testid={`pm-${id}-keys`}>{shortcutText(ACTION_COMMAND[id], { all: true })}</kbd>
                     </Menu.Item>
                   );
                 })}

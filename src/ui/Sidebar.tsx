@@ -49,6 +49,8 @@ interface Props {
   onUnpin?: () => void;
   /** Touch screen: the Image tab offers the camera next to the gallery. */
   coarse?: boolean;
+  /** Alt+1/2/3: switch to this tab. */
+  tabRequest?: { tab: 'personal' | 'biography' | 'image'; n: number } | null;
   /** The open edit form, for the unsaved-changes prompt (and saving from the keyboard). */
   formControl?: React.MutableRefObject<FormControl | null>;
 }
@@ -296,6 +298,10 @@ function ActionButton(props: { state: PersonActionState; onClick: () => void; te
 export function Sidebar(props: Props) {
   const { doc, selectedId } = props;
   const [tab, setTab] = useState<Tab>('personal');
+  const tabRequest = props.tabRequest;
+  useEffect(() => {
+    if (tabRequest) setTab(tabRequest.tab);
+  }, [tabRequest]);
   const [editing, setEditing] = useState(false);
   useEffect(() => setEditing(false), [selectedId]);
   const editRequest = props.editRequest;

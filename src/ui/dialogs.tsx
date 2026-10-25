@@ -3,7 +3,7 @@ import { Dialog } from '@base-ui/react/dialog';
 import type { TreeDoc } from '../model/types';
 import { addChildOptions, displayName, type AddChildMode } from '../model/relations';
 import { t, type Key } from '../i18n';
-import { SHORTCUT_GROUPS, SHORTCUTS, showKeys, type ShortcutGroup } from './shortcuts';
+import { SHORTCUT_GROUPS, SHORTCUTS, showKeys, type Shortcut, type ShortcutGroup } from './shortcuts';
 import { commandIcon, Icon } from './icons';
 
 /**
@@ -142,7 +142,15 @@ const GROUP_LABEL: Record<ShortcutGroup, Key> = {
 export function ShortcutsDialog(props: { onClose: () => void }) {
   const [q, setQ] = useState('');
   const needle = q.trim().toLowerCase();
-  const rows = SHORTCUTS.filter((s) => s.keys.length).filter(
+  // One row per command: entries that share a command (Enter and E both edit) show their keys together.
+  const merged: Shortcut[] = [];
+  for (const s of SHORTCUTS) {
+    if (!s.keys.length) continue;
+    const m = merged.find((x) => x.command === s.command);
+    if (m) m.keys = [...m.keys, ...s.keys];
+    else merged.push({ ...s });
+  }
+  const rows = merged.filter(
     (s) => !needle || t(s.label).toLowerCase().includes(needle) || s.keys.some((k) => showKeys(k).toLowerCase().includes(needle)),
   );
   return (

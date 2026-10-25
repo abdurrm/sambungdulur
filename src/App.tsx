@@ -26,7 +26,7 @@ import { BACKGROUND_MAX_SIDE, BACKGROUND_QUALITY, FADE_DEFAULT, type CanvasBackg
 import { SearchPanel } from './ui/SearchPanel';
 import type { OpenReport } from './ui/OpenDialog';
 import type { MenuAnchor } from './ui/PersonMenu';
-import type { PersonActionId } from './model/personActions';
+import { personActions, type PersonActionId } from './model/personActions';
 import { GUIDE_URL } from './links';
 import { initialLang, LANG_KEY, loadLang, setLang as setI18nLang, t, type Lang } from './i18n';
 import { getViewport, useViewport } from './ui/viewport';
@@ -221,6 +221,7 @@ export default function App() {
   };
   const [cardMenu, setCardMenu] = useState<{ id: string; anchor: MenuAnchor } | null>(null);
   const [editRequest, setEditRequest] = useState<EditRequest | null>(null);
+  const [tabRequest, setTabRequest] = useState<{ tab: 'personal' | 'biography' | 'image'; n: number } | null>(null);
   const [manualMode, setManualMode] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [matches, setMatches] = useState<Set<string>>(new Set());
@@ -846,12 +847,51 @@ export default function App() {
         return true;
       }
       case 'edit':
-        if (!selectedId || manualMode) return false;
-        doAction('edit', selectedId, { focus: true });
-        return true;
       case 'delete':
-        if (!selectedId || manualMode) return false;
-        doAction('delete', selectedId);
+      case 'photo':
+      case 'addParents':
+      case 'addSibling':
+      case 'addPartner':
+      case 'addChild':
+      case 'focusPerson': {
+        if (!selectedId || !doc.persons[selectedId]) return false;
+        const action: PersonActionId = cmd === 'focusPerson' ? 'focus' : cmd;
+        // Same rules as the buttons; an unavailable action says why instead of doing nothing.
+        const state = personActions(doc, selectedId, { manualMode })[action];
+        if (!state.enabled) {
+          notify(state.reason ?? t('notPossible'));
+          return true;
+        }
+        doAction(action, selectedId, { focus: action === 'edit' });
+        return true;
+      }
+      case 'selectFocus':
+        if (layout.nodes.has(focusId)) selectAndShow(focusId);
+        return true;
+      case 'prevPerson':
+      case 'nextPerson': {
+        // The order of the person list in the file, wrapping around at either end.
+        const order = doc.order;
+        if (!order.length) return true;
+        const i = selectedId ? order.indexOf(selectedId) : -1;
+        const step = cmd === 'nextPerson' ? 1 : -1;
+        const next = order[i < 0 ? (step > 0 ? 0 : order.length - 1) : (i + step + order.length) % order.length];
+        if (layout.nodes.has(next)) selectAndShow(next);
+        else
+          whenClean(() => {
+            focusOn(next);
+            announce(t('a11ySelected', { who: personLabel(doc, next) }));
+          });
+        return true;
+      }
+      case 'tab1':
+      case 'tab2':
+      case 'tab3':
+        setTabRequest({ tab: cmd === 'tab1' ? 'personal' : cmd === 'tab2' ? 'biography' : 'image', n: Date.now() });
+        return true;
+      case 'saveForm':
+        if (!formControl.current) return false;
+        formControl.current.save();
         return true;
       default:
         return false;
@@ -878,6 +918,7 @@ export default function App() {
     onDeleteImage: () => selectedId && setDialog({ kind: 'confirmDeleteImage', personId: selectedId }),
     onFocus: () => selectedId && focusOn(selectedId),
     formControl,
+    tabRequest,
     coarse: viewport.pointer === 'coarse',
   };
   const statusText = `${dirty ? t('unsaved') : t('saved')} · ${t('people', { n: doc.order.length })}`;

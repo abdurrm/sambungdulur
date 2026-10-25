@@ -25,6 +25,19 @@ export type Command =
   | 'navLeft'
   | 'navRight'
   | 'edit'
+  | 'photo'
+  | 'addParents'
+  | 'addSibling'
+  | 'addPartner'
+  | 'addChild'
+  | 'focusPerson'
+  | 'selectFocus'
+  | 'prevPerson'
+  | 'nextPerson'
+  | 'tab1'
+  | 'tab2'
+  | 'tab3'
+  | 'saveForm'
   | 'delete'
   | 'undo'
   | 'redo'
@@ -35,6 +48,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = ['file', 'navigation', 'person',
 
 export interface KeyLike {
   key: string;
+  code?: string;
   ctrlKey?: boolean;
   metaKey?: boolean;
   shiftKey?: boolean;
@@ -65,6 +79,8 @@ const mod = (e: KeyLike) => !!(e.ctrlKey || e.metaKey);
 const plain = (e: KeyLike) => !e.ctrlKey && !e.metaKey && !e.altKey;
 const k = (e: KeyLike) => e.key.toLowerCase();
 const letter = (ch: string) => (e: KeyLike) => plain(e) && !e.shiftKey && k(e) === ch;
+/** Alt+digit (the digit key may report a symbol on some layouts, so `code` is checked as well). */
+const altDigit = (e: KeyLike, d: string) => !!e.altKey && !e.ctrlKey && !e.metaKey && (e.key === d || e.code === `Digit${d}`);
 
 export const SHORTCUTS: Shortcut[] = [
   // File
@@ -91,8 +107,32 @@ export const SHORTCUTS: Shortcut[] = [
     match: (e) => plain(e) && !e.shiftKey && e.key === 'ArrowLeft',
   },
   { command: 'navRight', group: 'navigation', keys: [], label: 'scNavSide', yieldsToControls: true, match: (e) => plain(e) && !e.shiftKey && e.key === 'ArrowRight' },
+  { command: 'selectFocus', group: 'navigation', keys: [['Home']], label: 'scHome', yieldsToControls: true, treeOnly: true, match: (e) => plain(e) && !e.shiftKey && e.key === 'Home' },
+  { command: 'prevPerson', group: 'navigation', keys: [['['], [']']], label: 'scPrevNext', treeOnly: true, match: (e) => plain(e) && e.key === '[' },
+  { command: 'nextPerson', group: 'navigation', keys: [], label: 'scPrevNext', treeOnly: true, match: (e) => plain(e) && e.key === ']' },
   // Person
   { command: 'edit', group: 'person', keys: [['Enter']], label: 'scEdit', yieldsToControls: true, match: (e) => plain(e) && !e.shiftKey && e.key === 'Enter' },
+  // Single letters for the selected person, from English words so they stay the same in every language:
+  // Edit, Parents, Sibling, pArtner, Child, Focus, Image.
+  { command: 'edit', group: 'person', keys: [['E']], label: 'scEdit', treeOnly: true, needsSelection: true, match: letter('e') },
+  { command: 'addParents', group: 'person', keys: [['P']], label: 'scAddParents', treeOnly: true, needsSelection: true, match: letter('p') },
+  { command: 'addSibling', group: 'person', keys: [['S']], label: 'scAddSibling', treeOnly: true, needsSelection: true, match: letter('s') },
+  { command: 'addPartner', group: 'person', keys: [['A']], label: 'scAddPartner', treeOnly: true, needsSelection: true, match: letter('a') },
+  { command: 'addChild', group: 'person', keys: [['C']], label: 'scAddChild', treeOnly: true, needsSelection: true, match: letter('c') },
+  { command: 'focusPerson', group: 'person', keys: [['F']], label: 'scFocusPerson', treeOnly: true, needsSelection: true, match: letter('f') },
+  { command: 'photo', group: 'person', keys: [['I']], label: 'scPhoto', treeOnly: true, needsSelection: true, match: letter('i') },
+  {
+    command: 'tab1',
+    group: 'person',
+    keys: [['Alt', '1'], ['Alt', '2'], ['Alt', '3']],
+    label: 'scTabs',
+    whileTyping: true,
+    needsSelection: true,
+    match: (e) => altDigit(e, '1'),
+  },
+  { command: 'tab2', group: 'person', keys: [], label: 'scTabs', whileTyping: true, needsSelection: true, match: (e) => altDigit(e, '2') },
+  { command: 'tab3', group: 'person', keys: [], label: 'scTabs', whileTyping: true, needsSelection: true, match: (e) => altDigit(e, '3') },
+  { command: 'saveForm', group: 'person', keys: [['Ctrl', 'Enter']], label: 'scSaveForm', whileTyping: true, inForm: true, match: (e) => mod(e) && !e.altKey && !e.shiftKey && e.key === 'Enter' },
   { command: 'delete', group: 'person', keys: [['Delete']], label: 'scDelete', yieldsToControls: true, match: (e) => plain(e) && (e.key === 'Delete' || e.key === 'Backspace') },
   // View
   { command: 'zoomIn', group: 'view', keys: [['+']], label: 'scZoomIn', match: (e) => plain(e) && (e.key === '+' || e.key === '=') },
@@ -181,8 +221,9 @@ export function showKeys(keys: string[], apple = isApple()): string {
   return keys.map((x) => sym[x] ?? x).join(apple ? '' : '+');
 }
 
-/** Keys for a command, for tooltips and menus: "Ctrl+F". */
-export function shortcutText(command: Command): string | undefined {
-  const s = SHORTCUTS.find((x) => x.command === command);
-  return s && s.keys.length ? showKeys(s.keys[0]) : undefined;
+/** Keys for a command, for tooltips and menus: "Ctrl+F". `all`: every entry's first chord, "Enter / E". */
+export function shortcutText(command: Command, opts: { all?: boolean } = {}): string | undefined {
+  const entries = SHORTCUTS.filter((x) => x.command === command && x.keys.length);
+  if (!entries.length) return undefined;
+  return (opts.all ? entries : entries.slice(0, 1)).map((s) => showKeys(s.keys[0])).join(' / ');
 }
