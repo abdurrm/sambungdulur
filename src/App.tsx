@@ -32,6 +32,7 @@ import { initialLang, LANG_KEY, setLang as setI18nLang, t, type Lang } from './i
 import { getViewport, useViewport } from './ui/viewport';
 import { commandFor, keyContext, shortcutText, type Command } from './ui/shortcuts';
 import { kinNeighbour } from './model/kinNav';
+import { personLabel } from './model/a11y';
 
 // Loaded on demand (and precached by the service worker for offline use): not needed for the first view.
 const loadDialogs = () => import('./ui/dialogs');
@@ -164,6 +165,9 @@ export default function App() {
   };
   const [popover, setPopover] = useState<null | 'settings' | 'search' | 'more' | 'gens'>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
+  // Screen-reader announcements (polite live region); toasts announce themselves.
+  const [announcement, setAnnouncement] = useState('');
+  const announce = (text: string) => setAnnouncement((cur) => (cur === text ? `${text} ` : text));
   const [cardMenu, setCardMenu] = useState<{ id: string; anchor: MenuAnchor } | null>(null);
   const [editRequest, setEditRequest] = useState<{ id: string; n: number } | null>(null);
   const [manualMode, setManualMode] = useState(false);
@@ -341,12 +345,13 @@ export default function App() {
   }
 
   // ---- Actions -------------------------------------------------------------------------
-  const run = (fn: () => { doc: TreeDoc; select: string | null }) => {
+  const run = (fn: () => { doc: TreeDoc; select: string | null }, added = false) => {
     try {
       const r = fn();
       setDoc(r.doc);
       setSelectedId(r.select);
       if (r.select) pendingCenter.current = r.select;
+      if (added && r.select) announce(t('a11yAdded', { name: displayName(r.doc.persons[r.select], r.doc.settings) }));
     } catch (e) {
       if (e instanceof RelationError) setDialog({ kind: 'message', title: t('notPossible'), text: e.message });
       else throw e;
@@ -373,13 +378,13 @@ export default function App() {
         else setSidebarHidden(false);
         break;
       case 'addParents':
-        run(() => addParents(doc, id));
+        run(() => addParents(doc, id), true);
         break;
       case 'addSibling':
-        run(() => addSibling(doc, id));
+        run(() => addSibling(doc, id), true);
         break;
       case 'addPartner':
-        run(() => addPartner(doc, id));
+        run(() => addPartner(doc, id), true);
         break;
       case 'addChild':
         setDialog({ kind: 'addChild', personId: id });
@@ -629,6 +634,7 @@ export default function App() {
     setDocState(r.value);
     setDirty(r.value !== savedRef.current);
     if (selectedId && !r.value.persons[selectedId]) setSelectedId(null);
+    announce(t(dir === 'undo' ? 'a11yUndone' : 'a11yRedone'));
     return true;
   };
   undoRef.current = () => applyHistory('undo');
@@ -636,6 +642,7 @@ export default function App() {
   // ---- Keyboard commands (see ui/shortcuts.ts) ------------------------------------------
   const selectAndShow = (id: string) => {
     setSelectedId(id);
+    announce(t('a11ySelected', { who: personLabel(doc, id) }));
     requestAnimationFrame(() => canvas.current?.ensureVisible(id));
   };
   const onCommand = (cmd: Command): boolean => {
@@ -855,7 +862,8 @@ export default function App() {
         </nav>
       </header>
 
-      <div className="main">
+      <main className="main">
+        <h1 className="sr-only">SambungDulur · {doc.title}</h1>
         <Sidebar
           doc={doc}
           selectedId={selectedId}
@@ -936,8 +944,8 @@ export default function App() {
                 testId="gen-popover"
                 className="gen-popover"
                 trigger={
-                  <button className="gen-chip" data-testid="gen-chip" aria-label={t('generationsShown')}>
-                    ▲{doc.settings.ancestorGenerations < 0 ? t('all') : doc.settings.ancestorGenerations} ▼
+                  <button className="gen-chip" data-testid="gen-chip">
+                    <span className="sr-only">{t('generationsShown')}: </span>▲{doc.settings.ancestorGenerations < 0 ? t('all') : doc.settings.ancestorGenerations} ▼
                     {doc.settings.descendantGenerations < 0 ? t('all') : doc.settings.descendantGenerations}
                   </button>
                 }
@@ -973,7 +981,7 @@ export default function App() {
 
         </div>
 
-      </div>
+      </main>
 
       <Suspense fallback={null}>
       {cardMenu && doc.persons[cardMenu.id] && (
@@ -996,7 +1004,7 @@ export default function App() {
           onClose={() => setDialog(null)}
           onAdd={(mode: AddChildMode) => {
             setDialog(null);
-            run(() => addChild(doc, dialog.personId, mode));
+            run(() => addChild(doc, dialog.personId, mode), true);
           }}
         />
       )}
@@ -1095,6 +1103,9 @@ export default function App() {
         {viewport.pointer === 'fine' && <TooltipLayer />}
       </Suspense>
       <KeyboardShortcuts onCommand={onCommand} />
+      <div className="sr-only" role="status" aria-live="polite" data-testid="live-region">
+        {announcement}
+      </div>
     </div>
   );
 }

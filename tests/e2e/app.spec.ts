@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -904,4 +905,77 @@ test('touch screens get no tooltips: a tap just runs the action @mobile', async 
   await page.getByTestId('btn-search').tap();
   await expect(page.getByTestId('search-panel')).toBeVisible();
   await expect(page.getByTestId('tooltip')).toHaveCount(0);
+});
+
+async function seriousA11yIssues(page: Page) {
+  const r = await new AxeBuilder({ page }).analyze();
+  return r.violations
+    .filter((v) => v.impact === 'serious' || v.impact === 'critical')
+    .map((v) => `${v.id}: ${v.nodes.slice(0, 3).map((n) => n.target.join(' ')).join(' | ')}`);
+}
+
+test('no serious accessibility violations: main view, dark theme, dialog and card menu', async ({ page }) => {
+  await fresh(page);
+  await stableBox(card(page, 'Me').locator('.card-bg'));
+  expect(await seriousA11yIssues(page), 'main view').toEqual([]);
+  await page.getByTestId('btn-export').click();
+  await expect(page.getByTestId('export-dialog')).toBeVisible();
+  expect(await seriousA11yIssues(page), 'export dialog').toEqual([]);
+  await page.keyboard.press('Escape');
+  await card(page, 'My Father').locator('.card-bg').click({ button: 'right', force: true });
+  await expect(page.getByTestId('person-menu')).toBeVisible();
+  expect(await seriousA11yIssues(page), 'card menu').toEqual([]);
+  await page.keyboard.press('Escape');
+  await page.getByTestId('btn-theme').click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  expect(await seriousA11yIssues(page), 'dark theme').toEqual([]);
+});
+
+test('no serious accessibility violations on phones: sheet and menu @mobile', async ({ page }) => {
+  await fresh(page);
+  await expect(page.getByTestId('btn-more')).toBeEnabled();
+  expect(await seriousA11yIssues(page), 'main view').toEqual([]);
+  await card(page, 'Me').locator('.card-bg').tap({ position: { x: 20, y: 20 } });
+  await expect(page.getByTestId('sidebar')).toHaveAttribute('data-snap', 'half');
+  expect(await seriousA11yIssues(page), 'half sheet').toEqual([]);
+  await page.getByTestId('btn-more').tap();
+  await expect(page.getByTestId('more-menu')).toBeVisible();
+  expect(await seriousA11yIssues(page), 'overflow menu').toEqual([]);
+});
+
+test('cards have spoken names, changes are announced, reduced motion is respected', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await fresh(page);
+  const me = page.locator('g.person[aria-current="true"]');
+  await expect(me).toHaveAttribute('aria-label', /^Me, born 1994, focus person$/);
+  await expect(card(page, 'My Father')).toHaveAttribute('aria-label', 'My Father, born 1965, parent of Me');
+
+  await page.getByTestId('add-sibling').click();
+  await expect(page.getByTestId('live-region')).toContainText('Added');
+  await page.getByTestId('tree-canvas').focus();
+  await page.keyboard.press('ArrowUp');
+  await expect(page.getByTestId('live-region')).toContainText(/Selected: My (Father|Mother), born \d{4}, parent of Me/);
+
+  // Reduced motion: zoom and centring jump instead of animating.
+  const z0 = await zoomPctOf(page);
+  await page.getByTestId('btn-center').click();
+  const t0 = await page.locator('svg.tree-svg > g').first().getAttribute('transform');
+  await page.waitForTimeout(60);
+  expect(await page.locator('svg.tree-svg > g').first().getAttribute('transform')).toBe(t0);
+  expect(z0).toBeGreaterThan(0);
+});
+
+test('large text: at 200 % zoom the header and editor still fit without overlap', async ({ page }) => {
+  // 1400 × 900 at 200 % browser zoom is a 700 × 450 CSS-pixel viewport.
+  await page.setViewportSize({ width: 700, height: 450 });
+  await fresh(page);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+  for (const id of ['btn-open', 'btn-save', 'btn-export', 'btn-search', 'btn-settings', 'btn-more']) {
+    await expect(page.getByTestId(id)).toBeInViewport({ ratio: 1 });
+  }
+  await card(page, 'Me').locator('.card-bg').click({ force: true });
+  const header = (await page.locator('header').boundingBox())!;
+  const sheet = (await page.getByTestId('sidebar').boundingBox())!;
+  expect(sheet.y).toBeGreaterThanOrEqual(header.y + header.height - 1);
 });

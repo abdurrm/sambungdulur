@@ -41,12 +41,12 @@ export default function SheetFrame(props: {
                 <button
                   className="sidebar-grip"
                   onClick={() => props.onSnapChange(collapsed ? 'half' : 'bar')}
-                  aria-label={props.gripLabel}
                   aria-expanded={!collapsed}
                   data-testid="sheet-grip"
                 >
                   {collapsed ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                   {props.title}
+                  <span className="sr-only">, {props.gripLabel}</span>
                 </button>
               </div>
               <Drawer.Content className="sidebar-body sheet-body">{props.children}</Drawer.Content>

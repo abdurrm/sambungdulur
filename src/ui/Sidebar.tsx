@@ -453,9 +453,10 @@ export function Sidebar(props: Props) {
         aria-label={t('editorMenu')}
       >
         {props.onResize && !props.hidden && <PanelResizer width={props.width ?? PANEL_DEFAULT} onResize={props.onResize} />}
-        <button className="sidebar-grip" onClick={props.onToggleHidden} aria-label={toggleLabel}>
+        <button className="sidebar-grip" onClick={props.onToggleHidden} aria-expanded={!props.hidden}>
           {props.hidden ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           {p ? displayName(p, doc.settings) : t('editor')}
+          <span className="sr-only">, {toggleLabel}</span>
         </button>
         <div className="sidebar-body">{body}</div>
       </aside>

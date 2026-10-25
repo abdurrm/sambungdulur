@@ -12,10 +12,10 @@ import { t, type Key } from '../i18n';
 type Kind = 'png' | 'jpeg' | 'svg' | 'ged' | 'txt';
 
 const KINDS: { kind: Kind; label: Key; desc: Key; color: string }[] = [
-  { kind: 'png', label: 'kPng', desc: 'kPngDesc', color: '#7c3aed' },
-  { kind: 'jpeg', label: 'kJpeg', desc: 'kJpegDesc', color: '#0284c7' },
-  { kind: 'svg', label: 'kSvg', desc: 'kSvgDesc', color: '#ea580c' },
-  { kind: 'ged', label: 'kGed', desc: 'kGedDesc', color: '#059669' },
+  { kind: 'png', label: 'kPng', desc: 'kPngDesc', color: '#6d28d9' },
+  { kind: 'jpeg', label: 'kJpeg', desc: 'kJpegDesc', color: '#0369a1' },
+  { kind: 'svg', label: 'kSvg', desc: 'kSvgDesc', color: '#c2410c' },
+  { kind: 'ged', label: 'kGed', desc: 'kGedDesc', color: '#047857' },
   { kind: 'txt', label: 'kTxt', desc: 'kTxtDesc', color: '#475569' },
 ];
 
@@ -128,7 +128,7 @@ export function ExportDialog(props: {
       <div className="choice-list">
         {KINDS.map((k) => (
           <button key={k.kind} className={`choice${kind === k.kind ? ' selected' : ''}`} onClick={() => setKind(k.kind)} data-testid={`export-kind-${k.kind}`}>
-            <span className="badge" style={{ color: k.color, background: `${k.color}1a` }}>{k.kind.toUpperCase()}</span>
+            <span className="badge" style={{ color: '#fff', background: k.color }}>{k.kind.toUpperCase()}</span>
             <span>
               <div className="t">{t(k.label)}</div>
               <div className="d">{t(k.desc)}</div>

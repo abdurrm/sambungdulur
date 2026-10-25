@@ -8,6 +8,7 @@ import type { VisibleGraph } from '../layout/visible';
 import { TreeSvg } from '../render/TreeSvg';
 import { PALETTES } from '../render/palette';
 import { displayName } from '../model/relations';
+import { personLabel } from '../model/a11y';
 import { t as tx } from '../i18n';
 import type { MenuAnchor } from './PersonMenu';
 
@@ -272,6 +273,8 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
 
   const palette = PALETTES[props.doc.settings.theme];
   const selectedNode = props.selectedId ? props.layout.nodes.get(props.selectedId) : undefined;
+  const doc = props.doc;
+  const describe = useCallback((id: string) => personLabel(doc, id), [doc]);
   return (
     <div
       ref={wrapRef}
@@ -317,6 +320,7 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
         trace={props.doc.settings.traceAnimation}
         transform={t.toString()}
         hitRadius={props.coarsePointer ? hitRadiusFor(t.k) : undefined}
+        describe={describe}
       />
       {selectedNode && props.onCardMenu && !props.manualMode && (
         <button

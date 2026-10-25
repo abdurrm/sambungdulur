@@ -30,6 +30,8 @@ export interface TreeSvgProps {
   legend?: boolean;
   /** Radius (layout units) of the invisible press area around card buttons; set on touch screens. */
   hitRadius?: number;
+  /** Accessible name for each card (interactive canvas). */
+  describe?: (personId: string) => string;
   /** Wrap content in a <g> with this transform (canvas zoom). */
   transform?: string;
   title?: string;
@@ -56,6 +58,7 @@ function Card(props: {
   interactive: boolean;
   manualMode: boolean;
   hitRadius?: number;
+  label?: string;
 }) {
   const { n, doc, pal, density, url, selected, lit, matched } = props;
   const p = doc.persons[n.id];
@@ -199,7 +202,16 @@ function Card(props: {
     }
   }
   return (
-    <g className="person" data-person-id={n.id} data-gender={p.gender} data-testid={`person-${n.id}`} style={props.interactive ? { cursor: 'pointer' } : undefined}>
+    <g
+      className="person"
+      data-person-id={n.id}
+      data-gender={p.gender}
+      data-testid={`person-${n.id}`}
+      style={props.interactive ? { cursor: 'pointer' } : undefined}
+      role={props.label ? 'group' : undefined}
+      aria-label={props.label}
+      aria-current={props.label && selected ? 'true' : undefined}
+    >
       {out}
     </g>
   );
@@ -255,6 +267,7 @@ export function TreeSvg(props: TreeSvgProps) {
             interactive={!!props.interactive}
             manualMode={!!props.manualMode}
             hitRadius={props.hitRadius}
+            label={props.describe?.(n.id)}
           />
         ))}
       </g>
