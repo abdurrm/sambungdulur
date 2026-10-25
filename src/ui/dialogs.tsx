@@ -47,6 +47,20 @@ export function ConfirmDialog(props: {
   );
 }
 
+/** Leaving a form with changes: Save, Discard or stay (Cancel). */
+export function UnsavedDialog(props: { name: string; onSave: () => void; onDiscard: () => void; onCancel: () => void }) {
+  return (
+    <Modal title={t('unsavedTitle')} onClose={props.onCancel} testId="unsaved-dialog">
+      <div className="note" style={{ fontSize: 14, color: 'var(--muted)' }}>{t('unsavedMsg', { name: props.name })}</div>
+      <div className="actions">
+        <button className="btn ghost" onClick={props.onCancel} data-testid="unsaved-cancel">{t('cancel')}</button>
+        <button className="btn danger" onClick={props.onDiscard} data-testid="unsaved-discard">{t('discard')}</button>
+        <button className="btn primary" onClick={props.onSave} data-testid="unsaved-save">{t('save')}</button>
+      </div>
+    </Modal>
+  );
+}
+
 export function MessageDialog(props: { title: string; message: ReactNode; onClose: () => void }) {
   return (
     <Modal title={props.title} onClose={props.onClose} testId="message-dialog">

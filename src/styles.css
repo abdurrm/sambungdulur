@@ -177,9 +177,15 @@ hr.sep { border: 0; border-top: 1px solid var(--panel-border); margin: 2px 0; wi
   background: var(--panel-solid); border: 1px solid var(--panel-border); border-radius: 14px; box-shadow: var(--shadow);
 }
 .editor-popup-body { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
-.editor-popup-body > :first-child { margin-right: 34px; }
+.editor-popup-body > :first-child { margin-right: 68px; }
+/* Pinned editor: a fixed panel on the right of the desktop canvas (the canvas narrows, nothing is covered). */
+.sidebar.pinned { border-right: 0; border-left: 1px solid var(--panel-border); background: var(--panel-solid); }
+.sidebar.pinned .panel-resizer { left: -5px; right: auto; }
+.sidebar.pinned .panel-tools { right: 10px; }
+.sidebar.pinned .editor-popup-body > :first-child { margin-right: 34px; }
+.panel-tools { position: absolute; top: 8px; right: 8px; z-index: 1; display: flex; gap: 2px; }
 .editor-close {
-  position: absolute; top: 8px; right: 8px; z-index: 1; width: 32px; height: 32px; border-radius: 8px; border: 0;
+  width: 32px; height: 32px; border-radius: 8px; border: 0;
   background: transparent; color: var(--dim); display: grid; place-items: center;
 }
 .editor-close:hover { background: var(--hover); color: var(--text); }

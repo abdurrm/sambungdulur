@@ -19,6 +19,7 @@ import { MagnifyingGlassMinus } from '@phosphor-icons/react/dist/csr/MagnifyingG
 import { MagnifyingGlassPlus } from '@phosphor-icons/react/dist/csr/MagnifyingGlassPlus';
 import { Moon } from '@phosphor-icons/react/dist/csr/Moon';
 import { PencilSimple } from '@phosphor-icons/react/dist/csr/PencilSimple';
+import { PushPin } from '@phosphor-icons/react/dist/csr/PushPin';
 import { Question } from '@phosphor-icons/react/dist/csr/Question';
 import { SlidersHorizontal } from '@phosphor-icons/react/dist/csr/SlidersHorizontal';
 import { Trash } from '@phosphor-icons/react/dist/csr/Trash';
@@ -84,6 +85,7 @@ const ICONS = {
   newTree: deferred('FilePlus'),
   // Chrome
   close: X,
+  pin: PushPin,
   caretUp: CaretUp,
   caretDown: CaretDown,
   caretLeft: CaretLeft,

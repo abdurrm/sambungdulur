@@ -1615,3 +1615,85 @@ test('canvas background picture: shrunk to 2560 px, live settings, kept, exporte
   await page.keyboard.press('Control+z');
   await expect(svg.locator('.canvas-image image')).toHaveAttribute('href', before!);
 });
+
+test('desktop: leaving a changed form asks Save, Discard or Cancel', async ({ page }) => {
+  await fresh(page);
+  await expect(page.getByRole('dialog', { name: 'Editor: Me' })).toBeVisible();
+  await page.getByTestId('editor-popup').getByTestId('edit-person').click();
+  await page.getByTestId('f-given').fill('Me changed');
+  const father = card(page, 'My Father').locator('.card-bg');
+  const ask = page.getByTestId('unsaved-dialog');
+  // Cancel stays in the form, changes intact.
+  await father.click({ position: { x: 20, y: 20 }, force: true });
+  await expect(ask).toBeVisible();
+  await expect(ask).toContainText('Me');
+  await page.getByTestId('unsaved-cancel').click();
+  await expect(ask).toBeHidden();
+  await expect(page.getByTestId('f-given')).toHaveValue('Me changed');
+  // Discard drops the changes and moves on.
+  await father.click({ position: { x: 20, y: 20 }, force: true });
+  await page.getByTestId('unsaved-discard').click();
+  await expect(page.getByRole('dialog', { name: 'Editor: My Father' })).toBeVisible();
+  await expect(card(page, 'Me')).toBeVisible();
+  await expect(card(page, 'Me changed')).toHaveCount(0);
+  // Save keeps them and moves on.
+  await page.getByTestId('editor-popup').getByTestId('edit-person').click();
+  await page.getByTestId('f-given').fill('Dad');
+  await card(page, 'Me').locator('.card-bg').click({ position: { x: 20, y: 20 }, force: true });
+  await page.getByTestId('unsaved-save').click();
+  await expect(page.getByRole('dialog', { name: 'Editor: Me' })).toBeVisible();
+  await expect(card(page, 'Dad')).toBeVisible();
+  // Escape with changes asks too; an unchanged form just closes.
+  await page.getByTestId('editor-popup').getByTestId('edit-person').click();
+  await page.getByTestId('f-given').fill('Me again');
+  await page.keyboard.press('Escape');
+  await expect(ask).toBeVisible();
+  await page.getByTestId('unsaved-cancel').click();
+  await expect(page.getByTestId('editor-popup')).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('editor-popup')).toHaveCount(0);
+  await expect(ask).toHaveCount(0);
+});
+
+test('desktop: pin turns the pop-up into a resizable right panel that is remembered', async ({ page }) => {
+  await fresh(page);
+  await page.getByTestId('editor-pin').click();
+  const panel = page.getByTestId('editor-panel');
+  await expect(panel).toBeVisible();
+  await expect(page.getByTestId('editor-popup')).toHaveCount(0);
+  const p0 = await stableBox(panel);
+  expect(Math.round(p0.x + p0.width)).toBe(1400);
+  // The canvas narrows instead of being covered.
+  const c = (await page.getByTestId('tree-canvas').boundingBox())!;
+  expect(c.x + c.width).toBeLessThanOrEqual(p0.x + 1);
+  // Picking another person changes the content, not the panel.
+  await card(page, 'My Father').locator('.card-bg').click({ position: { x: 20, y: 20 }, force: true });
+  await expect(panel.getByTestId('selected-name')).toHaveText('My Father');
+  expect(await panel.boundingBox()).toEqual(p0);
+  const fb = await stableBox(card(page, 'My Father').locator('.card-bg'));
+  expect(fb.x + fb.width).toBeLessThanOrEqual(p0.x);
+  // Resize by dragging its left edge and with the arrow keys.
+  const r = (await page.getByTestId('panel-resizer').boundingBox())!;
+  await page.mouse.move(r.x + r.width / 2, r.y + 300);
+  await page.mouse.down();
+  await page.mouse.move(r.x + r.width / 2 - 100, r.y + 300, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(async () => Math.round((await panel.boundingBox())!.width)).toBe(Math.round(p0.width + 100));
+  await page.getByTestId('panel-resizer').focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect.poll(async () => Math.round((await panel.boundingBox())!.width)).toBe(Math.round(p0.width + 116));
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('End');
+  await expect(page.getByTestId('panel-resizer')).toHaveAttribute('aria-valuenow', '560');
+  // Pin and width survive a reload; unpin brings the pop-up back.
+  await page.reload();
+  await expect(panel).toBeVisible();
+  await expect.poll(async () => Math.round((await panel.boundingBox())!.width)).toBe(560);
+  await page.getByTestId('editor-unpin').click();
+  await expect(panel).toHaveCount(0);
+  await expect(page.getByTestId('editor-popup')).toBeVisible();
+  await page.reload();
+  await expect(page.getByTestId('editor-popup')).toBeVisible();
+  await expect(panel).toHaveCount(0);
+});

@@ -42,8 +42,14 @@ interface Props {
   /** Asks the panel to open the edit form for this person (card menu, double-click, Enter / E).
    *  `focus` moves keyboard focus to the first field. */
   editRequest?: EditRequest | null;
-  /** `popup`: only the editor content, framed by the desktop pop-up (which brings its own chrome). */
-  frame?: 'popup';
+  /** `popup`: only the editor content, framed by the desktop pop-up (which brings its own chrome).
+   *  `pinned`: a fixed, resizable panel on the right of the desktop canvas. */
+  frame?: 'popup' | 'pinned';
+  /** Pinned panel: back to the pop-up. */
+  onUnpin?: () => void;
+  /** The edit form reports unsaved changes, and can be saved or discarded from outside. */
+  onDirtyChange?: (dirty: boolean) => void;
+  formControl?: React.MutableRefObject<FormControl | null>;
 }
 
 export interface EditRequest {
@@ -57,7 +63,9 @@ export const PANEL_MAX = 560;
 export const PANEL_DEFAULT = 340;
 const clampW = (w: number) => Math.round(Math.min(PANEL_MAX, Math.max(PANEL_MIN, w)));
 
-function PanelResizer(props: { width: number; onResize: (w: number) => void }) {
+/** Drag or arrow-key separator. `side`: where the panel sits; a right-hand panel grows when its left edge moves left. */
+function PanelResizer(props: { width: number; onResize: (w: number) => void; side?: 'left' | 'right' }) {
+  const dir = props.side === 'right' ? -1 : 1;
   const drag = useRef<{ x: number; w: number } | null>(null);
   const [dragging, setDragging] = useState(false);
   return (
@@ -78,13 +86,13 @@ function PanelResizer(props: { width: number; onResize: (w: number) => void }) {
         setDragging(true);
         e.preventDefault();
       }}
-      onPointerMove={(e) => drag.current && props.onResize(clampW(drag.current.w + e.clientX - drag.current.x))}
+      onPointerMove={(e) => drag.current && props.onResize(clampW(drag.current.w + dir * (e.clientX - drag.current.x)))}
       onPointerUp={() => ((drag.current = null), setDragging(false))}
       onPointerCancel={() => ((drag.current = null), setDragging(false))}
       onKeyDown={(e) => {
         const step = e.shiftKey ? 40 : 16;
-        if (e.key === 'ArrowLeft') props.onResize(clampW(props.width - step));
-        else if (e.key === 'ArrowRight') props.onResize(clampW(props.width + step));
+        if (e.key === 'ArrowLeft') props.onResize(clampW(props.width - dir * step));
+        else if (e.key === 'ArrowRight') props.onResize(clampW(props.width + dir * step));
         else if (e.key === 'Home') props.onResize(PANEL_MIN);
         else if (e.key === 'End') props.onResize(PANEL_MAX);
         else return;
@@ -160,21 +168,50 @@ function DateInput(props: { label: string; value: string; onChange: (v: string) 
   );
 }
 
-function EditForm(props: { doc: TreeDoc; id: string; tab: Tab; onSave: (f: Partial<PersonFields>) => void; onCancel: () => void }) {
+/** Lets the App save or discard the open form (unsaved-changes prompt, Ctrl+Enter). */
+export interface FormControl {
+  save: () => void;
+  discard: () => void;
+}
+
+function EditForm(props: {
+  doc: TreeDoc;
+  id: string;
+  tab: Tab;
+  onSave: (f: Partial<PersonFields>) => void;
+  onCancel: () => void;
+  onDirty?: (dirty: boolean) => void;
+  control?: React.MutableRefObject<FormControl | null>;
+}) {
   const p = props.doc.persons[props.id];
   const [f, setF] = useState<PersonFields>({ ...p });
   const set = <K extends keyof PersonFields>(k: K, v: PersonFields[K]) => setF((s) => ({ ...s, [k]: v }));
+  const keys = Object.keys(f) as (keyof PersonFields)[];
+  const dirty = keys.some((k) => f[k] !== p[k]);
+  const save = () => {
+    const changed: Partial<PersonFields> = {};
+    keys.forEach((k) => {
+      if (f[k] !== p[k]) (changed as Record<string, unknown>)[k] = typeof f[k] === 'string' ? (f[k] as string).replace(/\s+$/, '') : f[k];
+    });
+    props.onSave(changed);
+  };
+  const onDirty = props.onDirty;
+  useEffect(() => onDirty?.(dirty), [dirty, onDirty]);
+  useEffect(() => () => onDirty?.(false), [onDirty]);
+  if (props.control) props.control.current = { save, discard: props.onCancel };
+  useEffect(() => {
+    const control = props.control;
+    return () => {
+      if (control) control.current = null;
+    };
+  }, [props.control]);
   return (
     <form
       className="form"
       data-testid="edit-form"
       onSubmit={(e) => {
         e.preventDefault();
-        const changed: Partial<PersonFields> = {};
-        (Object.keys(f) as (keyof PersonFields)[]).forEach((k) => {
-          if (f[k] !== p[k]) (changed as Record<string, unknown>)[k] = typeof f[k] === 'string' ? (f[k] as string).replace(/\s+$/, '') : f[k];
-        });
-        props.onSave(changed);
+        save();
       }}
     >
       <div className="form" hidden={props.tab !== 'personal'}>
@@ -320,6 +357,8 @@ export function Sidebar(props: Props) {
           id={p.id}
           tab={tab}
           onCancel={() => setEditing(false)}
+          onDirty={props.onDirtyChange}
+          control={props.formControl}
           onSave={(f) => {
             props.onSave(p.id, f);
             setEditing(false);
@@ -451,6 +490,21 @@ export function Sidebar(props: Props) {
     );
   }
 
+  if (props.frame === 'pinned') {
+    return (
+      <aside className="sidebar pinned" style={{ '--panel-w': `${props.width ?? PANEL_DEFAULT}px` } as CSSProperties} data-testid="editor-panel" data-key-scope="tree" aria-label={p ? t('editorFor', { name: displayName(p, doc.settings) }) : t('editorMenu')}>
+        {props.onResize && <PanelResizer width={props.width ?? PANEL_DEFAULT} onResize={props.onResize} side="right" />}
+        <div className="panel-tools">
+          <button className="editor-close" onClick={props.onUnpin} aria-label={t('unpinEditor')} aria-pressed="true" data-tip={t('unpinEditor')} data-testid="editor-unpin">
+            <Icon id="pin" size={18} active />
+          </button>
+        </div>
+        <div className="sidebar-body editor-popup-body" ref={bodyRef}>
+          {body}
+        </div>
+      </aside>
+    );
+  }
   if (props.frame === 'popup') {
     return (
       <div className="editor-popup-body" ref={bodyRef} data-testid="editor-body">

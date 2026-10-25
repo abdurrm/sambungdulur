@@ -23,6 +23,8 @@ export default function EditorPopover(props: {
   canvas: React.RefObject<CanvasApi | null>;
   /** Escape or the close button. */
   onClose: () => void;
+  /** Turns the pop-up into a fixed panel on the right. */
+  onPin: () => void;
   /** Escape belongs to an open dialog or menu instead. */
   escapeBlocked: () => boolean;
   children: ReactNode;
@@ -75,9 +77,14 @@ export default function EditorPopover(props: {
             data-testid="editor-popup"
             data-key-scope="tree"
           >
-            <Popover.Close className="editor-close" aria-label={t('close')} data-tip={t('closeEditor')} data-testid="editor-close">
-              <Icon id="close" size={18} />
-            </Popover.Close>
+            <div className="panel-tools">
+              <button className="editor-close" onClick={props.onPin} aria-label={t('pinEditor')} aria-pressed="false" data-tip={t('pinEditor')} data-testid="editor-pin">
+                <Icon id="pin" size={18} />
+              </button>
+              <Popover.Close className="editor-close" aria-label={t('close')} data-tip={t('closeEditor')} data-testid="editor-close">
+                <Icon id="close" size={18} />
+              </Popover.Close>
+            </div>
             {props.children}
           </Popover.Popup>
         </Popover.Positioner>

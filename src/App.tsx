@@ -17,7 +17,7 @@ import { buildSambung, isSambung, parseSambung } from './io/sambungFile';
 import { downloadBlob, safeFileName } from './io/imageExport';
 import * as store from './storage/idb';
 import { TreeCanvas, ZOOM_MAX, ZOOM_MIN, type CanvasApi, type CanvasInset } from './ui/TreeCanvas';
-import { PANEL_DEFAULT, Sidebar, type EditRequest } from './ui/Sidebar';
+import { PANEL_DEFAULT, Sidebar, type EditRequest, type FormControl } from './ui/Sidebar';
 import { SHEET_BAR_PX, type SheetSnap } from './ui/sheetSnap';
 import { useBackToClose } from './ui/backToClose';
 import { emptyHistory, record, redo as redoStep, undo as undoStep, type History } from './model/history';
@@ -59,6 +59,7 @@ const ConfirmDialog = lazy(() => loadDialogs().then((m) => ({ default: m.Confirm
 const ManualLayoutInfo = lazy(() => loadDialogs().then((m) => ({ default: m.ManualLayoutInfo })));
 const MessageDialog = lazy(() => loadDialogs().then((m) => ({ default: m.MessageDialog })));
 const ShortcutsDialog = lazy(() => loadDialogs().then((m) => ({ default: m.ShortcutsDialog })));
+const UnsavedDialog = lazy(() => loadDialogs().then((m) => ({ default: m.UnsavedDialog })));
 /** Warm the on-demand chunks once the first view is up, so the first click never waits. */
 function preloadLazyUi() {
   const run = () => {
@@ -98,10 +99,13 @@ type Dialog =
   | { kind: 'crop'; file: File; personId: string }
   | { kind: 'export' }
   | { kind: 'open' }
-  | { kind: 'shortcuts' };
+  | { kind: 'shortcuts' }
+  | { kind: 'unsaved'; next: () => void };
 
 const MANUAL_INFO_KEY = 'sambungdulur.manualInfoSeen';
 const PANEL_KEY = 'sambungdulur.panel';
+/** Desktop editor pinned as a right-hand panel, and that panel's width. */
+const PIN_KEY = 'sambungdulur.editorPin';
 const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
 
 async function initSql() {
@@ -176,6 +180,22 @@ export default function App() {
   };
   // Desktop pop-up: open for the selected person unless dismissed (Escape, close button) for that person.
   const [dismissedId, setDismissedId] = useState<string | null>(null);
+  // Pinned: the pop-up becomes a fixed panel on the right (state and width remembered).
+  const [pin, setPin] = useState<{ pinned: boolean; width: number }>(() => {
+    try {
+      const v = JSON.parse(localStorage.getItem(PIN_KEY) ?? 'null');
+      if (v && typeof v.width === 'number') return { pinned: !!v.pinned, width: v.width };
+    } catch {
+      /* ignore */
+    }
+    return { pinned: false, width: PANEL_DEFAULT };
+  });
+  useEffect(() => localStorage.setItem(PIN_KEY, JSON.stringify(pin)), [pin]);
+  const pinned = wide && pin.pinned;
+  // The desktop edit form reports unsaved changes; leaving it asks Save / Discard / Cancel first.
+  const [formDirty, setFormDirty] = useState(false);
+  const formControl = useRef<FormControl | null>(null);
+  const onDirtyChange = useCallback((dirty: boolean) => setFormDirty(dirty), []);
   const [popover, setPopover] = useState<null | 'settings' | 'search' | 'more' | 'gens'>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
   // Screen-reader announcements (polite live region); toasts announce themselves.
@@ -366,9 +386,10 @@ export default function App() {
   useEffect(() => {
     if (viewport.layout !== 'wide' || !selectedId) return;
     const id = selectedId;
-    const raf = requestAnimationFrame(() => canvas.current?.ensureVisible(id, { right: POPUP_RESERVE }));
+    // A pinned panel narrows the canvas itself; the pop-up needs room beside the card.
+    const raf = requestAnimationFrame(() => canvas.current?.ensureVisible(id, pin.pinned ? undefined : { right: POPUP_RESERVE }));
     return () => cancelAnimationFrame(raf);
-  }, [selectedId, viewport.layout]);
+  }, [selectedId, viewport.layout, pin.pinned]);
   useEffect(() => {
     if (!layout || !pendingCenter.current) return;
     const target = pendingCenter.current;
@@ -425,8 +446,17 @@ export default function App() {
     pendingCenter.current = id;
   };
 
+  /** Runs `next` now, or after Save / Discard when the desktop edit form has unsaved changes. */
+  const whenClean = (next: () => void) => {
+    if (!wide || !formDirty || !formControl.current) next();
+    else setDialog({ kind: 'unsaved', next });
+  };
   /** Runs one person action; shared by the editor panel and the card menus. */
   const doAction = (action: PersonActionId, id: string, opts: { focus?: boolean } = {}) => {
+    if (!(action === 'edit' && id === selectedId) && wide && formDirty) {
+      whenClean(() => doAction(action, id, opts));
+      return;
+    }
     switch (action) {
       case 'edit':
         setSelectedId(id);
@@ -699,6 +729,7 @@ export default function App() {
 
   // ---- Keyboard commands (see ui/shortcuts.ts) ------------------------------------------
   const selectAndShow = (id: string) => {
+    if (id !== selectedId && wide && formDirty) return whenClean(() => selectAndShow(id));
     setSelectedId(id);
     announce(t('a11ySelected', { who: personLabel(doc, id) }));
     if (!wide) requestAnimationFrame(() => canvas.current?.ensureVisible(id));
@@ -809,7 +840,28 @@ export default function App() {
     }
   };
 
-  const editorOpen = wide && !manualMode && !!selectedId && !!doc.persons[selectedId] && layout.nodes.has(selectedId) && dismissedId !== selectedId;
+  const editorOpen = wide && !pinned && !manualMode && !!selectedId && !!doc.persons[selectedId] && layout.nodes.has(selectedId) && dismissedId !== selectedId;
+  // One set of editor props for the phone sheet, the tablet drawer, the desktop pop-up and the pinned panel.
+  const editorProps = {
+    doc,
+    selectedId,
+    mediaUrl,
+    manualMode,
+    onSave: (id: string, fields: Partial<PersonFields>) => {
+      if (Object.keys(fields).length) setDoc(updatePerson(doc, id, fields));
+    },
+    onAddParents: () => selectedId && doAction('addParents', selectedId),
+    onAddSibling: () => selectedId && doAction('addSibling', selectedId),
+    onAddPartner: () => selectedId && doAction('addPartner', selectedId),
+    onAddChild: () => selectedId && doAction('addChild', selectedId),
+    onDelete: () => selectedId && doAction('delete', selectedId),
+    editRequest,
+    onUploadImage,
+    onDeleteImage: () => selectedId && setDialog({ kind: 'confirmDeleteImage', personId: selectedId }),
+    onFocus: () => selectedId && focusOn(selectedId),
+    onDirtyChange,
+    formControl,
+  };
   const statusText = `${dirty ? t('unsaved') : t('saved')} · ${t('people', { n: doc.order.length })}`;
   const missingMedia = Object.values(doc.media).filter((m) => !m.available).length;
   const comps = doc.order.length > 1 && visible.hiddenCount > 0 ? components(doc).length : 1;
@@ -877,15 +929,18 @@ export default function App() {
               doc={doc}
               onClose={() => setPopover(null)}
               onQuery={setMatches}
-              onPick={(id) => {
-                setMatches(new Set([id]));
-                if (visible.gen.has(id)) {
-                  setSelectedId(id);
-                  canvas.current?.centerOn(id, 1);
-                } else focusOn(id);
-                if (narrow) setSheet('half');
-                else if (viewport.layout === 'medium') setDrawerOpen(true);
-              }}
+              onPick={(id) =>
+                whenClean(() => {
+                  setMatches(new Set([id]));
+                  setDismissedId(null);
+                  if (visible.gen.has(id)) {
+                    setSelectedId(id);
+                    canvas.current?.centerOn(id, 1);
+                  } else focusOn(id);
+                  if (narrow) setSheet('half');
+                  else if (viewport.layout === 'medium') setDrawerOpen(true);
+                })
+              }
             />
           </ToolPopover>
           </Suspense>
@@ -960,30 +1015,17 @@ export default function App() {
 
       <main className="main">
         <h1 className="sr-only">SambungDulur · {doc.title}</h1>
-        {!wide && <Sidebar
-          doc={doc}
-          selectedId={selectedId}
-          hidden={sidebarHidden || manualMode}
-          onToggleHidden={() => setSidebarHidden(!sidebarHidden)}
-          width={panel.width}
-          mediaUrl={mediaUrl}
-          manualMode={manualMode}
-          sheet={narrow ? sheetSnap : null}
-          onSheetChange={setSheet}
-          onEditingChange={onEditingChange}
-          onSave={(id, fields) => {
-            if (Object.keys(fields).length) setDoc(updatePerson(doc, id, fields));
-          }}
-          onAddParents={() => selectedId && doAction('addParents', selectedId)}
-          onAddSibling={() => selectedId && doAction('addSibling', selectedId)}
-          onAddPartner={() => selectedId && doAction('addPartner', selectedId)}
-          onAddChild={() => selectedId && doAction('addChild', selectedId)}
-          onDelete={() => selectedId && doAction('delete', selectedId)}
-          editRequest={editRequest}
-          onUploadImage={onUploadImage}
-          onDeleteImage={() => selectedId && setDialog({ kind: 'confirmDeleteImage', personId: selectedId })}
-          onFocus={() => selectedId && focusOn(selectedId)}
-        />}
+        {!wide && (
+          <Sidebar
+            {...editorProps}
+            hidden={sidebarHidden || manualMode}
+            onToggleHidden={() => setSidebarHidden(!sidebarHidden)}
+            width={panel.width}
+            sheet={narrow ? sheetSnap : null}
+            onSheetChange={setSheet}
+            onEditingChange={onEditingChange}
+          />
+        )}
         <div className="stage">
         <TreeCanvas
           ref={canvas}
@@ -998,6 +1040,13 @@ export default function App() {
           onScale={setScale}
           inset={inset}
           onSelect={(id) => {
+            if (id !== selectedId && wide && formDirty) {
+              whenClean(() => {
+                setSelectedId(id);
+                setDismissedId(null);
+              });
+              return;
+            }
             setSelectedId(id);
             setDismissedId(null);
             if (narrow) setSheet(id ? 'half' : 'bar');
@@ -1029,32 +1078,15 @@ export default function App() {
               label={selectedId && doc.persons[selectedId] ? t('editorFor', { name: displayName(doc.persons[selectedId], doc.settings) }) : t('editor')}
               canvas={canvas}
               escapeBlocked={() => !!dialog || !!cardMenu || !!popover}
-              onClose={() => {
-                setDismissedId(selectedId);
-                canvas.current && document.querySelector<HTMLElement>('[data-testid="tree-canvas"]')?.focus();
-              }}
+              onClose={() =>
+                whenClean(() => {
+                  setDismissedId(selectedId);
+                  document.querySelector<HTMLElement>('[data-testid="tree-canvas"]')?.focus();
+                })
+              }
+              onPin={() => setPin((p) => ({ ...p, pinned: true }))}
             >
-                    <Sidebar
-                      frame="popup"
-                doc={doc}
-                selectedId={selectedId}
-                      hidden={false}
-                      onToggleHidden={() => undefined}
-                mediaUrl={mediaUrl}
-                manualMode={manualMode}
-                onSave={(id, fields) => {
-                  if (Object.keys(fields).length) setDoc(updatePerson(doc, id, fields));
-                }}
-                onAddParents={() => selectedId && doAction('addParents', selectedId)}
-                onAddSibling={() => selectedId && doAction('addSibling', selectedId)}
-                onAddPartner={() => selectedId && doAction('addPartner', selectedId)}
-                onAddChild={() => selectedId && doAction('addChild', selectedId)}
-                onDelete={() => selectedId && doAction('delete', selectedId)}
-                editRequest={editRequest}
-                onUploadImage={onUploadImage}
-                onDeleteImage={() => selectedId && setDialog({ kind: 'confirmDeleteImage', personId: selectedId })}
-                onFocus={() => selectedId && focusOn(selectedId)}
-        />
+              <Sidebar frame="popup" {...editorProps} hidden={false} onToggleHidden={() => undefined} />
             </EditorPopover>
           </Suspense>
         )}
@@ -1115,7 +1147,17 @@ export default function App() {
         </div>
 
         </div>
-
+        {pinned && (
+          <Sidebar
+            frame="pinned"
+            {...editorProps}
+            hidden={false}
+            onToggleHidden={() => undefined}
+            width={pin.width}
+            onResize={(width) => setPin((p) => ({ ...p, width }))}
+            onUnpin={() => setPin((p) => ({ ...p, pinned: false }))}
+          />
+        )}
       </main>
 
       <Suspense fallback={null}>
@@ -1210,6 +1252,22 @@ export default function App() {
         />
       )}
       {dialog?.kind === 'shortcuts' && <ShortcutsDialog onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'unsaved' && (
+        <UnsavedDialog
+          name={selectedId && doc.persons[selectedId] ? displayName(doc.persons[selectedId], doc.settings) : ''}
+          onCancel={() => setDialog(null)}
+          onSave={() => {
+            formControl.current?.save();
+            setDialog(null);
+            dialog.next();
+          }}
+          onDiscard={() => {
+            formControl.current?.discard();
+            setDialog(null);
+            dialog.next();
+          }}
+        />
+      )}
       {dialog?.kind === 'message' && <MessageDialog title={dialog.title} message={dialog.text} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'crop' && (
         <CropDialog file={dialog.file} onCancel={() => setDialog(null)} onDone={(blob) => applyCroppedImage(dialog.personId, blob)} />

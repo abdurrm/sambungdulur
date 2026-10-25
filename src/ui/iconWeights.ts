@@ -4,7 +4,7 @@
  * keep `fill`, and only empty-state illustrations keep `duotone`; the other weights are dropped from
  * the bundle. An icon asked for a weight it does not have falls back to `regular`.
  */
-export const FILL_ICONS = ['PencilSimple', 'DownloadSimple', 'MagnifyingGlass', 'SlidersHorizontal', 'Layout', 'DotsThree'];
+export const FILL_ICONS = ['PencilSimple', 'DownloadSimple', 'MagnifyingGlass', 'SlidersHorizontal', 'Layout', 'DotsThree', 'PushPin'];
 export const DUOTONE_ICONS = ['TreeStructure'];
 
 export function hasWeight(icon: string, weight: string): boolean {
