@@ -6,7 +6,8 @@ import { t } from '../i18n';
  * Starter tree. Mirrors the shape observed on the original site (me + two parents),
  * with our own wording; no assets or copy are taken from the original.
  */
-export function createDefaultTree(): TreeDoc {
+/** `narrow` picks hint wording for phones, where the editor is a sheet at the bottom instead of a left menu. */
+export function createDefaultTree(opts: { narrow?: boolean } = {}): TreeDoc {
   return {
     title: t('defaultTitle'),
     persons: {
@@ -17,7 +18,7 @@ export function createDefaultTree(): TreeDoc {
         gender: 'male',
         birthDate: '4 JUL 1994',
         birthPlace: 'United Kingdom',
-        facts: t('defMeFacts'),
+        facts: t(opts.narrow ? 'defMeFactsNarrow' : 'defMeFacts'),
       },
       I2: {
         ...emptyFields(),

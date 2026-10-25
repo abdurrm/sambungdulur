@@ -165,7 +165,8 @@ html[data-theme='dark'] .tool-btn.primary { color: #022c22; }
   flex: 1; border: 0; background: transparent; padding: 9px 4px; font-size: 13px; font-weight: 600; color: var(--dim);
   border-bottom: 2px solid transparent; margin-bottom: -1px;
 }
-.tab.active { color: var(--accent-text); border-color: var(--accent); }
+.tab.active, .tab[data-active] { color: var(--accent-text); border-color: var(--accent); }
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px; }
 .details { width: 100%; border-collapse: collapse; font-size: 13px; }
 .details th { text-align: left; color: var(--dim); font-weight: 500; padding: 6px 8px 6px 0; vertical-align: top; width: 42%; }
 .details td { padding: 6px 0; word-break: break-word; white-space: pre-wrap; }
@@ -180,6 +181,10 @@ html[data-theme='dark'] .tool-btn.primary { color: #022c22; }
 html[data-theme='dark'] .btn.primary { color: #022c22; }
 .btn.danger { color: var(--danger); border-color: var(--danger); background: var(--danger-soft); }
 .btn.ghost { background: transparent; }
+.btn .btn-main { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.btn.has-reason { flex-direction: column; gap: 1px; height: auto; min-height: 40px; padding: 5px 10px; }
+.btn.has-reason:disabled { opacity: 1; color: var(--dim); background: var(--hover); border-style: dashed; }
+.btn-reason { font-size: 11px; font-weight: 500; color: var(--dim); line-height: 1.25; }
 .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .section-label { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin: 4px 0 -4px; }
 hr.sep { border: 0; border-top: 1px solid var(--panel-border); margin: 2px 0; width: 100%; }

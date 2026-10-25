@@ -429,3 +429,32 @@ test('header popovers and the overflow menu are keyboard friendly; reset is set 
   await page.getByTestId('confirm-cancel').click();
   await expect(persons(page)).toHaveCount(3);
 });
+
+test('editor explains unavailable actions and its tabs follow the arrow keys', async ({ page }) => {
+  await fresh(page);
+  // "Me" already has parents: the button says why instead of silently greying out.
+  const addParents = page.getByTestId('add-parents');
+  await expect(addParents).toBeDisabled();
+  await expect(page.getByTestId('add-parents-reason')).toHaveText('Parents already added');
+  await expect(addParents).toHaveAccessibleDescription('Parents already added');
+
+  await page.getByTestId('tab-personal').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByTestId('tab-biography')).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('biography-table')).toBeVisible();
+  await page.keyboard.press('End');
+  await expect(page.getByTestId('tab-image')).toBeFocused();
+  await page.keyboard.press('Home');
+  await expect(page.getByTestId('tab-personal')).toBeFocused();
+
+  // Indonesian reason text.
+  await setLangViaSettings(page, 'id');
+  await expect(page.getByTestId('add-parents-reason')).toHaveText('Orang tua sudah ada');
+});
+
+test('starter hint names the editor where it really is on phones @mobile', async ({ page }) => {
+  await fresh(page);
+  await expect(card(page, 'Me')).toContainText('sheet');
+  await expect(card(page, 'Me')).not.toContainText('left');
+});

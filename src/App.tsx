@@ -120,7 +120,7 @@ export default function App() {
       } catch {
         /* IndexedDB unavailable (private mode): start fresh */
       }
-      const initial = withDefaults(d ?? createDefaultTree());
+      const initial = withDefaults(d ?? createDefaultTree({ narrow: getViewport().layout === 'narrow' }));
       setDocState(initial);
       // The original selects the root person on load; do the same so the editor is populated.
       if (getViewport().layout !== 'narrow') setSelectedId(initial.persons[initial.focusId] ? initial.focusId : initial.order[0] ?? null);
@@ -614,7 +614,7 @@ export default function App() {
           hidden={sidebarHidden || manualMode}
           onToggleHidden={() => setSidebarHidden(!sidebarHidden)}
           mediaUrl={mediaUrl}
-          disabled={manualMode}
+          manualMode={manualMode}
           onSave={(id, fields) => {
             if (Object.keys(fields).length) setDoc(updatePerson(doc, id, fields));
           }}
@@ -732,7 +732,7 @@ export default function App() {
           onCancel={() => setDialog(null)}
           onConfirm={async () => {
             setDialog(null);
-            await replaceDoc(createDefaultTree(), new Map());
+            await replaceDoc(createDefaultTree({ narrow }), new Map());
             setDirty(false);
           }}
         />

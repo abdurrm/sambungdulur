@@ -1,9 +1,12 @@
+import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Pencil, Trash2, UserPlus, Users, Baby, Heart, ImagePlus, ImageMinus, Crosshair } from 'lucide-react';
 import type { Gender, PersonFields, TreeDoc } from '../model/types';
 import { buildGedcomDate, formatDate, parseSimpleDate } from '../model/dates';
 import { COUNTRIES } from '../model/countries';
-import { displayName, hasParents } from '../model/relations';
+import { displayName } from '../model/relations';
+import { personActions, type PersonActionState } from '../model/personActions';
+import { Tabs } from '@base-ui/react/tabs';
 import { getLang, MONTHS_BY_LANG, t } from '../i18n';
 
 type Tab = 'personal' | 'biography' | 'image';
@@ -23,7 +26,7 @@ interface Props {
   onUploadImage: (file: File) => void;
   onDeleteImage: () => void;
   onFocus: () => void;
-  disabled: boolean;
+  manualMode: boolean;
 }
 
 const genderLabel = (g: Gender) => (g === 'female' ? t('female') : g === 'male' ? t('male') : t('other'));
@@ -170,6 +173,25 @@ function EditForm(props: { doc: TreeDoc; id: string; tab: Tab; onSave: (f: Parti
   );
 }
 
+/** A person action button; when unavailable it stays readable and shows why underneath its label. */
+function ActionButton(props: { state: PersonActionState; onClick: () => void; testId: string; icon: ReactNode; label: string; className?: string }) {
+  const { enabled, reason } = props.state;
+  const reasonId = `${props.testId}-reason`;
+  return (
+    <button
+      className={`${props.className ?? 'btn'}${reason ? ' has-reason' : ''}`}
+      onClick={props.onClick}
+      disabled={!enabled}
+      aria-describedby={reason ? reasonId : undefined}
+      title={reason}
+      data-testid={props.testId}
+    >
+      <span className="btn-main">{props.icon} {props.label}</span>
+      {reason && <small className="btn-reason" id={reasonId} data-testid={reasonId}>{reason}</small>}
+    </button>
+  );
+}
+
 export function Sidebar(props: Props) {
   const { doc, selectedId } = props;
   const [tab, setTab] = useState<Tab>('personal');
@@ -179,15 +201,16 @@ export function Sidebar(props: Props) {
   const fmt = (v: string) => formatDate(v, doc.settings.dateFormat) || t('unknown');
   const tabLabel = (x: Tab) => (x === 'personal' ? t('tabPersonal') : x === 'biography' ? t('tabBiography') : t('tabImage'));
   const tabs = (
-    <div className="tabs" role="tablist">
-      {(['personal', 'biography', 'image'] as Tab[]).map((x) => (
-        <button key={x} role="tab" aria-selected={tab === x} className={`tab${tab === x ? ' active' : ''}`} onClick={() => setTab(x)} data-testid={`tab-${x}`}>
-          {tabLabel(x)}
-        </button>
-      ))}
-    </div>
+    <Tabs.Root value={tab} onValueChange={(v) => setTab(v as Tab)}>
+      <Tabs.List className="tabs" aria-label={t('editorMenu')}>
+        {(['personal', 'biography', 'image'] as Tab[]).map((x) => (
+          <Tabs.Tab key={x} value={x} className="tab" data-testid={`tab-${x}`}>
+            {tabLabel(x)}
+          </Tabs.Tab>
+        ))}
+      </Tabs.List>
+    </Tabs.Root>
   );
-
   let body;
   if (!p) {
     body = (
@@ -213,6 +236,7 @@ export function Sidebar(props: Props) {
       </>
     );
   } else {
+    const acts = personActions(doc, p.id, { manualMode: props.manualMode });
     const photoUrl = p.photoId ? props.mediaUrl(p.photoId) : undefined;
     const gallery = doc.gallery[p.id] ?? [];
     body = (
@@ -291,31 +315,17 @@ export function Sidebar(props: Props) {
           </div>
         )}
         <hr className="sep" />
-        <button className="btn primary" onClick={() => setEditing(true)} disabled={props.disabled} data-testid="edit-person">
-          <Pencil size={16} /> {t('editPerson')}
-        </button>
+        <ActionButton state={acts.edit} className="btn primary" onClick={() => setEditing(true)} testId="edit-person" icon={<Pencil size={16} />} label={t('editPerson')} />
         <div className="section-label">{t('addRelative')}</div>
         <div className="btn-grid">
-          <button className="btn" onClick={props.onAddParents} disabled={props.disabled || hasParents(doc, p.id)} data-testid="add-parents">
-            <Users size={16} /> {t('addParents')}
-          </button>
-          <button className="btn" onClick={props.onAddSibling} disabled={props.disabled} data-testid="add-sibling">
-            <UserPlus size={16} /> {t('addSibling')}
-          </button>
-          <button className="btn" onClick={props.onAddPartner} disabled={props.disabled} data-testid="add-partner">
-            <Heart size={16} /> {t('addPartner')}
-          </button>
-          <button className="btn" onClick={props.onAddChild} disabled={props.disabled} data-testid="add-child">
-            <Baby size={16} /> {t('addChild')}
-          </button>
+          <ActionButton state={acts.addParents} onClick={props.onAddParents} testId="add-parents" icon={<Users size={16} />} label={t('addParents')} />
+          <ActionButton state={acts.addSibling} onClick={props.onAddSibling} testId="add-sibling" icon={<UserPlus size={16} />} label={t('addSibling')} />
+          <ActionButton state={acts.addPartner} onClick={props.onAddPartner} testId="add-partner" icon={<Heart size={16} />} label={t('addPartner')} />
+          <ActionButton state={acts.addChild} onClick={props.onAddChild} testId="add-child" icon={<Baby size={16} />} label={t('addChild')} />
         </div>
-        <button className="btn ghost" onClick={props.onFocus} data-testid="focus-person">
-          <Crosshair size={16} /> {t('showFrom')}
-        </button>
+        <ActionButton state={acts.focus} className="btn ghost" onClick={props.onFocus} testId="focus-person" icon={<Crosshair size={16} />} label={t('showFrom')} />
         <hr className="sep" />
-        <button className="btn danger" onClick={props.onDelete} disabled={props.disabled} data-testid="delete-person">
-          <Trash2 size={16} /> {t('deletePerson')}
-        </button>
+        <ActionButton state={acts.delete} className="btn danger" onClick={props.onDelete} testId="delete-person" icon={<Trash2 size={16} />} label={t('deletePerson')} />
       </>
     );
   }
