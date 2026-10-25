@@ -7,6 +7,12 @@ import type { TreeLayout } from '../layout/layout';
 import type { VisibleGraph } from '../layout/visible';
 import { TreeSvg } from '../render/TreeSvg';
 import { PALETTES } from '../render/palette';
+import { displayName } from '../model/relations';
+import { t as tx } from '../i18n';
+import type { MenuAnchor } from './PersonMenu';
+
+const LONG_PRESS_MS = 500;
+const pointAnchor = (x: number, y: number): MenuAnchor => ({ getBoundingClientRect: () => new DOMRect(x, y, 0, 0) });
 
 export const ZOOM_MIN = 0.05;
 export const ZOOM_MAX = 2;
@@ -43,6 +49,10 @@ interface Props {
   onDragBus: (familyId: string, dy: number, done: boolean) => void;
   onScale?: (k: number) => void;
   inset?: CanvasInset;
+  /** Open the person action menu (right-click, long-press, or the ⋯ button on the selected card). */
+  onCardMenu?: (personId: string, anchor: MenuAnchor) => void;
+  /** Double-click on a card: edit that person. */
+  onEditRequest?: (personId: string) => void;
 }
 
 export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props, ref) {
@@ -73,7 +83,7 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
       // Let card buttons and manual-layout handles receive their own pointer events.
       .filter((ev: Event) => {
         const target = ev.target as Element;
-        if (target.closest?.('[data-action="move"],[data-action="bus"]')) return false;
+        if (target.closest?.('[data-action="move"],[data-action="bus"],.card-more')) return false;
         if (ev.type === 'wheel') return true; // includes trackpad pinch (ctrl+wheel)
         return !(ev as MouseEvent).button; // primary button / touch only
       })
@@ -186,9 +196,41 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
     drag.current = null;
   };
   const downAt = useRef<{ x: number; y: number } | null>(null);
+  // Long-press on a card (touch / pen) opens its action menu; any real movement means a pan instead.
+  const press = useRef<{ timer: number; x: number; y: number } | null>(null);
+  const longPressAt = useRef(0);
+  const cancelPress = () => {
+    if (press.current) clearTimeout(press.current.timer);
+    press.current = null;
+  };
+  const personAt = (target: EventTarget | null) => (target as Element | null)?.closest?.('.person')?.getAttribute('data-person-id') ?? null;
+  const openMenu = (id: string, anchor: MenuAnchor) => props.onCardMenu?.(id, anchor);
+  const onLongPressStart = (e: React.PointerEvent) => {
+    cancelPress();
+    if (e.pointerType === 'mouse' || props.manualMode || !props.onCardMenu) return;
+    const id = personAt(e.target);
+    if (!id) return;
+    const { clientX: x, clientY: y } = e;
+    press.current = { x, y, timer: window.setTimeout(() => ((press.current = null), (longPressAt.current = Date.now()), openMenu(id, pointAnchor(x, y))), LONG_PRESS_MS) };
+  };
+  const onContextMenu = (e: React.MouseEvent) => {
+    const id = personAt(e.target);
+    if (!id || props.manualMode || !props.onCardMenu) return;
+    e.preventDefault();
+    // Android also fires contextmenu for the long-press we already handled.
+    if (Date.now() - longPressAt.current < 800) return;
+    cancelPress();
+    openMenu(id, pointAnchor(e.clientX, e.clientY));
+  };
   const onClick = (e: React.MouseEvent) => {
     if (downAt.current && Math.hypot(e.clientX - downAt.current.x, e.clientY - downAt.current.y) > 6) return;
     const target = e.target as Element;
+    if (target.closest('.card-more')) return;
+    // The click that ends a long-press must not also count as a press outside the menu it opened.
+    if (Date.now() - longPressAt.current < 800) {
+      e.stopPropagation();
+      return;
+    }
     const btn = target.closest('.card-btn');
     if (btn) {
       props.onAction(btn.getAttribute('data-action')!, btn.getAttribute('data-person-id')!);
@@ -200,6 +242,7 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
   };
 
   const palette = PALETTES[props.doc.settings.theme];
+  const selectedNode = props.selectedId ? props.layout.nodes.get(props.selectedId) : undefined;
   return (
     <div
       ref={wrapRef}
@@ -207,12 +250,23 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
       data-testid="tree-canvas"
       onPointerDownCapture={(e) => {
         downAt.current = { x: e.clientX, y: e.clientY };
+        onLongPressStart(e);
         onPointerDown(e);
       }}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      onPointerMove={(e) => {
+        if (press.current && Math.hypot(e.clientX - press.current.x, e.clientY - press.current.y) > 8) cancelPress();
+        onPointerMove(e);
+      }}
+      onPointerUp={(e) => (cancelPress(), onPointerUp(e))}
+      onPointerCancel={(e) => (cancelPress(), onPointerUp(e))}
       onClick={onClick}
+      onContextMenu={onContextMenu}
+      onDoubleClick={(e) => {
+        const target = e.target as Element;
+        if (props.manualMode || target.closest('.card-btn,.card-more')) return;
+        const id = personAt(target);
+        if (id) props.onEditRequest?.(id);
+      }}
     >
       <TreeSvg
         doc={props.doc}
@@ -230,6 +284,19 @@ export const TreeCanvas = forwardRef<CanvasApi, Props>(function TreeCanvas(props
         trace={props.doc.settings.traceAnimation}
         transform={t.toString()}
       />
+      {selectedNode && props.onCardMenu && !props.manualMode && (
+        <button
+          className="card-more"
+          style={{ left: t.applyX(selectedNode.x - selectedNode.w / 2) + 6, top: t.applyY(selectedNode.y) + 6 }}
+          aria-label={tx('cardActions', { name: displayName(props.doc.persons[selectedNode.id], props.doc.settings) })}
+          aria-haspopup="menu"
+          title={tx('cardActions', { name: displayName(props.doc.persons[selectedNode.id], props.doc.settings) })}
+          onClick={(e) => openMenu(selectedNode.id, e.currentTarget)}
+          data-testid="card-more"
+        >
+          ⋯
+        </button>
+      )}
     </div>
   );
 });

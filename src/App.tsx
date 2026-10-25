@@ -25,6 +25,8 @@ import { Toast } from './ui/Toast';
 import { GenerationControl, LanguageSelect, SettingsMenu } from './ui/SettingsMenu';
 import { SearchPanel } from './ui/SearchPanel';
 import type { OpenReport } from './ui/OpenDialog';
+import type { MenuAnchor } from './ui/PersonMenu';
+import type { PersonActionId } from './model/personActions';
 import { GUIDE_URL } from './links';
 import { initialLang, LANG_KEY, setLang as setI18nLang, t, type Lang } from './i18n';
 import { getViewport, useViewport } from './ui/viewport';
@@ -33,6 +35,7 @@ import { getViewport, useViewport } from './ui/viewport';
 const loadDialogs = () => import('./ui/dialogs');
 const loadPopups = () => import('./ui/HeaderPopups');
 const MoreMenu = lazy(() => import('./ui/MoreMenu'));
+const PersonMenu = lazy(() => import('./ui/PersonMenu'));
 const ToolPopover = lazy(() => loadPopups().then((m) => ({ default: m.ToolPopover })));
 const AddChildDialog = lazy(() => loadDialogs().then((m) => ({ default: m.AddChildDialog })));
 const ConfirmDialog = lazy(() => loadDialogs().then((m) => ({ default: m.ConfirmDialog })));
@@ -44,6 +47,7 @@ function preloadLazyUi() {
     void loadDialogs();
     void loadPopups();
     void import('./ui/MoreMenu');
+    void import('./ui/PersonMenu');
     void import('./ui/ExportDialog');
     void import('./ui/OpenDialog');
     void import('./ui/SheetFrame');
@@ -142,6 +146,8 @@ export default function App() {
   };
   const [popover, setPopover] = useState<null | 'settings' | 'search' | 'more'>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
+  const [cardMenu, setCardMenu] = useState<{ id: string; anchor: MenuAnchor } | null>(null);
+  const [editRequest, setEditRequest] = useState<{ id: string; n: number } | null>(null);
   const [manualMode, setManualMode] = useState(false);
   const [toast, setToast] = useState<{ text: string; kind?: 'info' | 'error' } | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -323,6 +329,40 @@ export default function App() {
     setDoc((d) => ({ ...d, focusId: id }), false);
     setSelectedId(id);
     pendingCenter.current = id;
+  };
+
+  /** Runs one person action; shared by the editor panel and the card menus. */
+  const doAction = (action: PersonActionId, id: string) => {
+    switch (action) {
+      case 'edit':
+        setSelectedId(id);
+        setEditRequest({ id, n: Date.now() });
+        if (narrow) setSheet('full');
+        else if (viewport.layout === 'medium') setDrawerOpen(true);
+        else setSidebarHidden(false);
+        break;
+      case 'addParents':
+        run(() => addParents(doc, id));
+        break;
+      case 'addSibling':
+        run(() => addSibling(doc, id));
+        break;
+      case 'addPartner':
+        run(() => addPartner(doc, id));
+        break;
+      case 'addChild':
+        setDialog({ kind: 'addChild', personId: id });
+        break;
+      case 'focus':
+        focusOn(id);
+        break;
+      case 'delete': {
+        const blocker = deleteBlocker(doc, id);
+        if (blocker) setDialog({ kind: 'message', title: t('cannotDelete'), text: blocker.message });
+        else setDialog({ kind: 'confirmDelete', personId: id });
+        break;
+      }
+    }
   };
 
   const onCardAction = (action: string, id: string) => {
@@ -702,16 +742,12 @@ export default function App() {
           onSave={(id, fields) => {
             if (Object.keys(fields).length) setDoc(updatePerson(doc, id, fields));
           }}
-          onAddParents={() => selectedId && run(() => addParents(doc, selectedId))}
-          onAddSibling={() => selectedId && run(() => addSibling(doc, selectedId))}
-          onAddPartner={() => selectedId && run(() => addPartner(doc, selectedId))}
-          onAddChild={() => selectedId && setDialog({ kind: 'addChild', personId: selectedId })}
-          onDelete={() => {
-            if (!selectedId) return;
-            const blocker = deleteBlocker(doc, selectedId);
-            if (blocker) setDialog({ kind: 'message', title: t('cannotDelete'), text: blocker.message });
-            else setDialog({ kind: 'confirmDelete', personId: selectedId });
-          }}
+          onAddParents={() => selectedId && doAction('addParents', selectedId)}
+          onAddSibling={() => selectedId && doAction('addSibling', selectedId)}
+          onAddPartner={() => selectedId && doAction('addPartner', selectedId)}
+          onAddChild={() => selectedId && doAction('addChild', selectedId)}
+          onDelete={() => selectedId && doAction('delete', selectedId)}
+          editRequest={editRequest}
           onUploadImage={onUploadImage}
           onDeleteImage={() => selectedId && setDialog({ kind: 'confirmDeleteImage', personId: selectedId })}
           onFocus={() => selectedId && focusOn(selectedId)}
@@ -735,6 +771,8 @@ export default function App() {
             else if (viewport.layout === 'medium') setDrawerOpen(!!id);
           }}
           onAction={onCardAction}
+          onCardMenu={(id, anchor) => setCardMenu({ id, anchor })}
+          onEditRequest={(id) => doAction('edit', id)}
           onDragPerson={(id, delta, done) => {
             if (done) {
               setDraftDx((d) => ({ ...d, [id]: (d[id] ?? doc.manual.personDx[id] ?? 0) + delta }));
@@ -786,6 +824,19 @@ export default function App() {
       </div>
 
       <Suspense fallback={null}>
+      {cardMenu && doc.persons[cardMenu.id] && (
+        <PersonMenu
+          doc={doc}
+          personId={cardMenu.id}
+          anchor={cardMenu.anchor}
+          manualMode={manualMode}
+          onClose={() => setCardMenu(null)}
+          onAction={(action, id) => {
+            setCardMenu(null);
+            doAction(action, id);
+          }}
+        />
+      )}
       {dialog?.kind === 'addChild' && (
         <AddChildDialog
           doc={doc}

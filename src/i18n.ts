@@ -97,6 +97,7 @@ const en = {
   reasonPartnerLimit: 'Limit of {n} partners reached',
   reasonManualMode: 'Finish manual layout first',
   resizePanel: 'Resize editor panel',
+  cardActions: 'Actions for {name}',
   defFatherFacts: 'Add his parents and siblings to grow this branch.',
   defMotherFacts: 'Open Tree settings to choose which details appear on each card.',
   // add child
@@ -407,6 +408,7 @@ const id: Record<Key, string> = {
   reasonPartnerLimit: 'Batas {n} pasangan tercapai',
   reasonManualMode: 'Selesaikan tata letak manual dulu',
   resizePanel: 'Ubah lebar panel penyunting',
+  cardActions: 'Aksi untuk {name}',
   defFatherFacts: 'Tambahkan orang tua dan saudaranya untuk memperluas cabang ini.',
   defMotherFacts: 'Buka Pengaturan pohon untuk memilih rincian yang tampil di setiap kartu.',
   addChildFor: 'Tambah anak untuk {name}',
@@ -705,6 +707,7 @@ const jv: Record<Key, string> = {
   reasonPartnerLimit: 'Wates {n} bojo wis kagayuh',
   reasonManualMode: 'Rampungna tata letak manual dhisik',
   resizePanel: 'Owahi ambané panèl panyunting',
+  cardActions: 'Tumindak kanggo {name}',
   defFatherFacts: 'Tambahna wong tuwa lan seduluré supaya pang iki saya amba.',
   defMotherFacts: 'Bukak Setelan wit kanggo milih rincian sing katon ing saben kertu.',
   addChildFor: 'Tambah anak kanggo {name}',

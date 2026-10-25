@@ -39,6 +39,8 @@ interface Props {
   /** Desktop panel width (px). When `onResize` is set the right edge can be dragged or moved with arrow keys. */
   width?: number;
   onResize?: (width: number) => void;
+  /** Asks the panel to open the edit form for this person (card menu, double-click). */
+  editRequest?: { id: string; n: number } | null;
 }
 
 export const PANEL_MIN = 280;
@@ -251,6 +253,15 @@ export function Sidebar(props: Props) {
   const [tab, setTab] = useState<Tab>('personal');
   const [editing, setEditing] = useState(false);
   useEffect(() => setEditing(false), [selectedId]);
+  const editRequest = props.editRequest;
+  const consumed = useRef(0);
+  useEffect(() => {
+    // Each request opens the form once; coming back to that person later must not reopen it.
+    if (editRequest && editRequest.id === selectedId && consumed.current !== editRequest.n) {
+      consumed.current = editRequest.n;
+      setEditing(true);
+    }
+  }, [editRequest, selectedId]);
   const onEditingChange = props.onEditingChange;
   useEffect(() => onEditingChange?.(editing), [editing, onEditingChange]);
   const sheet = props.sheet ?? null;

@@ -259,6 +259,7 @@ test('mobile layout has no horizontal overflow and a bottom sheet editor @mobile
   expect(overflow).toBeLessThanOrEqual(0);
   // Every toolbar button must be on screen (the title input yields space).
   for (const id of ['btn-open', 'btn-save', 'btn-export', 'btn-search', 'btn-more']) {
+    await expect(page.getByTestId(id)).toBeEnabled(); // some menus load on demand
     const b = (await page.getByTestId(id).boundingBox())!;
     expect(b.x, id).toBeGreaterThanOrEqual(0);
     expect(b.x + b.width, id).toBeLessThanOrEqual(390);
@@ -487,6 +488,20 @@ test('the tapped person stays visible above the editor sheet @mobile', async ({ 
   await expectAboveSheet(page, 'My Mother');
 });
 
+async function stableBox(loc: ReturnType<Page['locator']>) {
+  let last = '';
+  await expect
+    .poll(async () => {
+      const b = (await loc.boundingBox())!;
+      const key = `${Math.round(b.x)},${Math.round(b.y)},${Math.round(b.width)}`;
+      const still = key === last;
+      last = key;
+      return still;
+    }, { intervals: [150] })
+    .toBe(true);
+  return (await loc.boundingBox())!;
+}
+
 async function dragSheet(page: Page, dy: number) {
   // Wait until the sheet has finished its snap animation before grabbing it.
   let last = -1;
@@ -611,4 +626,65 @@ test('the desktop editor panel can be resized and remembers its width', async ({
   await expect(sidebar).toHaveClass(/hidden/);
   await page.getByTestId('sidebar-toggle').click();
   await expect.poll(async () => Math.round((await sidebar.boundingBox())!.width)).toBe(560);
+});
+
+test('cards have an action menu: right-click, the ⋯ button and double-click to edit', async ({ page }) => {
+  await fresh(page);
+  // Right-click opens the menu for that card, not the browser menu.
+  await card(page, 'My Father').locator('.card-bg').click({ button: 'right', force: true });
+  const menu = page.getByTestId('person-menu');
+  await expect(menu).toBeVisible();
+  await expect(menu).toContainText('My Father');
+  await page.getByTestId('pm-addChild').click();
+  await expect(page.getByTestId('add-child-dialog')).toContainText('My Father');
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('add-child-dialog')).toBeHidden();
+
+  // Unavailable actions keep their reason in the menu.
+  await card(page, 'Me').locator('.card-bg').click({ button: 'right', force: true });
+  await expect(page.getByTestId('pm-addParents')).toHaveAttribute('data-disabled', '');
+  await expect(page.getByTestId('pm-addParents-reason')).toHaveText('Parents already added');
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeHidden();
+
+  // The selected card has a visible ⋯ button that works from the keyboard and gets focus back.
+  const more = page.getByTestId('card-more');
+  await more.focus();
+  await page.keyboard.press('Enter');
+  await expect(menu).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeHidden();
+  await expect(more).toBeFocused();
+
+  // Menu actions run on the card's person: add a sibling for Me.
+  await more.click();
+  await page.getByTestId('pm-addSibling').click();
+  await expect(persons(page)).toHaveCount(4);
+
+  // Double-click a card to edit it.
+  await card(page, 'My Mother').locator('.card-bg').dblclick({ force: true });
+  await expect(page.getByTestId('edit-form')).toBeVisible();
+  await expect(page.getByTestId('f-given')).toHaveValue('My Mother');
+});
+
+test('long-press on a card opens its action menu without panning @mobile', async ({ page }) => {
+  await fresh(page);
+  const bg = card(page, 'My Father').locator('.card-bg');
+  await stableBox(bg); // the starter tree is still fitting into view
+  // A short press is just a tap: it selects, no menu.
+  await card(page, 'My Mother').locator('.card-bg').tap({ position: { x: 30, y: 30 } });
+  await expect(page.getByTestId('selected-name')).toHaveText('My Mother');
+  await expect(page.getByTestId('person-menu')).toBeHidden();
+  const before = await stableBox(bg);
+  const x = before.x + 30, y = before.y + 30;
+  const opts = { pointerType: 'touch', isPrimary: true, pointerId: 7, clientX: x, clientY: y, bubbles: true, button: 0, buttons: 1 };
+  await bg.dispatchEvent('pointerdown', opts);
+  await page.waitForTimeout(650);
+  await bg.dispatchEvent('pointerup', { ...opts, buttons: 0 });
+  await expect(page.getByTestId('person-menu')).toBeVisible();
+  const after = (await bg.boundingBox())!;
+  expect(Math.abs(after.x - before.x) + Math.abs(after.y - before.y)).toBeLessThan(2);
+  await page.getByTestId('pm-addPartner').tap(); // adds exactly one person
+  await expect(persons(page)).toHaveCount(4);
+
 });

@@ -390,3 +390,16 @@ html[data-layout='narrow'] .popover { width: 100%; max-height: min(78dvh, calc(1
   .sheet { transition: none; }
 }
 .sheet-fallback { position: fixed; left: 0; right: 0; bottom: 0; height: 56px; z-index: 20; background: var(--panel-solid); border-top: 1px solid var(--panel-border); border-radius: 18px 18px 0 0; }
+
+/* ---- Card action menu ---- */
+.card-more {
+  position: absolute; z-index: 4; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center;
+  border: 1px solid var(--panel-border); background: var(--panel-solid); color: var(--muted); font-size: 16px; line-height: 1;
+  box-shadow: var(--shadow); padding: 0;
+}
+.card-more:hover { color: var(--text); border-color: var(--accent); }
+.card-more:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.menu-title { text-transform: none; letter-spacing: 0; font-family: var(--font-sans); font-size: 12.5px; font-weight: 650; color: var(--muted); }
+.menu-text { display: flex; flex-direction: column; gap: 1px; }
+.menu-reason { font-size: 11px; font-weight: 500; color: var(--dim); }
+.card-menu-positioner { z-index: 70; }
