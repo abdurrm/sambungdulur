@@ -303,7 +303,10 @@ html[data-pointer='coarse'] .range-field input[type='range'] { min-height: 44px;
   position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 200;
   width: min(460px, calc(100vw - 24px)); outline: none;
 }
-html[data-layout='narrow'] .toast-viewport { bottom: calc(56px + 12px + env(safe-area-inset-bottom, 0px)); }
+/* Phones: toasts and canvas controls float 12 px above the editor sheet's bar. The bar already sits on the
+   bottom edge, so the bottom safe-area inset is not added again (Android Chrome reports the navigation bar
+   there, which left an empty band between the controls and the bar). */
+html[data-layout='narrow'] .toast-viewport { bottom: calc(56px + 12px); }
 .toast {
   position: absolute; left: 0; right: 0; bottom: 0; background: var(--panel-solid);
   border: 1px solid var(--panel-border); border-left: 4px solid var(--accent); border-radius: 10px; padding: 8px 8px 8px 14px;
@@ -450,9 +453,9 @@ html[data-pointer='coarse'] .choice { min-height: 56px; }
 }
 html[data-pointer='coarse'] .gen-chip { min-height: 44px; min-width: 44px; }
 .popover.gen-popover { width: min(380px, calc(100vw - 20px)); }
-/* Zoom buttons and the view info sit above the sheet's bar and the phone's safe area. */
-html[data-layout='narrow'] .zoom-controls { bottom: calc(56px + 12px + env(safe-area-inset-bottom, 0px)); right: calc(10px + env(safe-area-inset-right, 0px)); }
-html[data-layout='narrow'] .view-info { bottom: calc(56px + 12px + env(safe-area-inset-bottom, 0px)); left: calc(10px + env(safe-area-inset-left, 0px)); padding: 4px 8px; }
+/* Zoom buttons and the view info sit just above the sheet's bar (see the toast rule). */
+html[data-layout='narrow'] .zoom-controls { bottom: calc(56px + 12px); right: calc(10px + env(safe-area-inset-right, 0px)); }
+html[data-layout='narrow'] .view-info { bottom: calc(56px + 12px); left: calc(10px + env(safe-area-inset-left, 0px)); padding: 4px 8px; }
 kbd {
   font-family: var(--font-mono); font-size: 12px; padding: 2px 6px; border-radius: 6px; border: 1px solid var(--panel-border);
   border-bottom-width: 2px; background: var(--hover); color: var(--text); white-space: nowrap;

@@ -1915,3 +1915,29 @@ test('the card menu shows each action\'s shortcut', async ({ page }) => {
   await expect(people.getByTestId('shortcut-addChild')).toContainText('C');
   await expect(people.getByTestId('shortcut-saveForm')).toContainText(/Ctrl\+Enter/);
 });
+
+test('phones: zoom buttons and view info sit right above the sheet bar, with no empty band @mobile', async ({ page }) => {
+  // Android Chrome reports its navigation bar as a 48 px bottom safe-area inset (viewport-fit=cover).
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setSafeAreaInsetsOverride' as 'Emulation.setDeviceMetricsOverride', { insets: { bottom: 48 } } as never);
+  await fresh(page);
+  expect(await page.evaluate(() => {
+    const d = document.createElement('div');
+    d.style.paddingBottom = 'env(safe-area-inset-bottom)';
+    document.body.appendChild(d);
+    const v = getComputedStyle(d).paddingBottom;
+    d.remove();
+    return v;
+  })).toBe('48px');
+  const sheet = page.getByTestId('sidebar');
+  await expect(sheet).toHaveAttribute('data-snap', 'bar');
+  const top = (await stableBox(page.getByTestId('sheet-drag'))).y;
+  for (const id of ['view-info', 'btn-zoom-out']) {
+    const b = (await page.getByTestId(id).boundingBox())!;
+    const gap = top - (b.y + b.height);
+    expect(gap, id).toBeGreaterThanOrEqual(4);
+    expect(gap, id).toBeLessThanOrEqual(20);
+  }
+  // The safe-area inset is not added on top of the sheet bar.
+  expect(await page.locator('.view-info').evaluate((e) => getComputedStyle(e).bottom)).toBe('68px');
+});
