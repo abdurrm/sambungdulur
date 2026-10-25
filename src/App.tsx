@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { unzipSync } from 'fflate';
 import {
   CircleHelp, Download, FolderOpen, Moon, Save, Search, Settings2, Sun, LayoutTemplate, RotateCcw, ZoomIn, ZoomOut, Maximize, MoreHorizontal, MonitorDown,
@@ -19,16 +19,41 @@ import { downloadBlob, safeFileName } from './io/imageExport';
 import * as store from './storage/idb';
 import { TreeCanvas, ZOOM_MAX, ZOOM_MIN, type CanvasApi, type CanvasInset } from './ui/TreeCanvas';
 import { Sidebar } from './ui/Sidebar';
-import { AddChildDialog, ConfirmDialog, ManualLayoutInfo, MessageDialog, Toast } from './ui/dialogs';
-import { CropDialog } from './ui/CropDialog';
+import { SHEET_BAR_PX, type SheetSnap } from './ui/sheetSnap';
+import { useBackToClose } from './ui/backToClose';
+import { Toast } from './ui/Toast';
 import { GenerationControl, LanguageSelect, SettingsMenu } from './ui/SettingsMenu';
 import { SearchPanel } from './ui/SearchPanel';
-import { MoreMenu, ToolPopover } from './ui/HeaderPopups';
-import { ExportDialog } from './ui/ExportDialog';
-import { OpenDialog, type OpenReport } from './ui/OpenDialog';
+import type { OpenReport } from './ui/OpenDialog';
 import { GUIDE_URL } from './links';
 import { initialLang, LANG_KEY, setLang as setI18nLang, t, type Lang } from './i18n';
 import { getViewport, useViewport } from './ui/viewport';
+
+// Loaded on demand (and precached by the service worker for offline use): not needed for the first view.
+const loadDialogs = () => import('./ui/dialogs');
+const loadPopups = () => import('./ui/HeaderPopups');
+const MoreMenu = lazy(() => import('./ui/MoreMenu'));
+const ToolPopover = lazy(() => loadPopups().then((m) => ({ default: m.ToolPopover })));
+const AddChildDialog = lazy(() => loadDialogs().then((m) => ({ default: m.AddChildDialog })));
+const ConfirmDialog = lazy(() => loadDialogs().then((m) => ({ default: m.ConfirmDialog })));
+const ManualLayoutInfo = lazy(() => loadDialogs().then((m) => ({ default: m.ManualLayoutInfo })));
+const MessageDialog = lazy(() => loadDialogs().then((m) => ({ default: m.MessageDialog })));
+/** Warm the on-demand chunks once the first view is up, so the first click never waits. */
+function preloadLazyUi() {
+  const run = () => {
+    void loadDialogs();
+    void loadPopups();
+    void import('./ui/MoreMenu');
+    void import('./ui/ExportDialog');
+    void import('./ui/OpenDialog');
+    void import('./ui/SheetFrame');
+  };
+  if ('requestIdleCallback' in window) requestIdleCallback(run, { timeout: 2000 });
+  else setTimeout(run, 800);
+}
+const CropDialog = lazy(() => import('./ui/CropDialog').then((m) => ({ default: m.CropDialog })));
+const ExportDialog = lazy(() => import('./ui/ExportDialog').then((m) => ({ default: m.ExportDialog })));
+const OpenDialog = lazy(() => import('./ui/OpenDialog').then((m) => ({ default: m.OpenDialog })));
 
 type Dialog =
   | null
@@ -99,39 +124,37 @@ export default function App() {
   const [sidebarHidden, setSidebarHidden] = useState(() => getViewport().layout === 'narrow');
   const [popover, setPopover] = useState<null | 'settings' | 'search' | 'more'>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
+  const [manualMode, setManualMode] = useState(false);
   const [toast, setToast] = useState<{ text: string; kind?: 'info' | 'error' } | null>(null);
   const [dirty, setDirty] = useState(false);
   const [matches, setMatches] = useState<Set<string>>(new Set());
-  const [manualMode, setManualMode] = useState(false);
   const [draftDx, setDraftDx] = useState<Record<string, number>>({});
   const [draftDy, setDraftDy] = useState<Record<string, number>>({});
   const [live, setLive] = useState<{ kind: 'move' | 'bus'; id: string; delta: number } | null>(null);
   const [scale, setScale] = useState(1);
   const [installEvt, setInstallEvt] = useState<(Event & { prompt: () => Promise<void> }) | null>(null);
   const canvas = useRef<CanvasApi>(null);
-  const sheetRef = useRef<HTMLElement>(null);
-  const stageRef = useRef<HTMLDivElement>(null);
-  const [inset, setInset] = useState<CanvasInset>({ left: 0, bottom: 0 });
-  // How much of the canvas the editor covers. Only on narrow screens does it float over the canvas.
+  // Phone editor sheet. Its height is known from the snap point, so the canvas inset follows it directly.
+  const [sheet, setSheet] = useState<SheetSnap>('bar');
+  const [viewH, setViewH] = useState(() => window.innerHeight);
   useEffect(() => {
-    const sheet = sheetRef.current;
-    const stage = stageRef.current;
-    if (!sheet || !stage) return;
-    const measure = () => {
-      if (!narrow) return setInset((cur) => (cur.left || cur.bottom ? { left: 0, bottom: 0 } : cur));
-      const covered = Math.max(0, Math.round(stage.getBoundingClientRect().bottom - sheet.getBoundingClientRect().top));
-      setInset((cur) => (cur.bottom === covered && cur.left === 0 ? cur : { left: 0, bottom: covered }));
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(sheet);
-    ro.observe(stage);
-    sheet.addEventListener('transitionend', measure);
-    return () => {
-      ro.disconnect();
-      sheet.removeEventListener('transitionend', measure);
-    };
-  }, [narrow, sidebarHidden, doc !== null]);
+    const onResize = () => setViewH(window.innerHeight);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  const sheetSnap: SheetSnap = manualMode ? 'bar' : sheet;
+  const inset = useMemo<CanvasInset>(
+    () => (narrow ? { left: 0, bottom: sheetSnap === 'bar' ? SHEET_BAR_PX : sheetSnap === 'half' ? Math.round(viewH * 0.5) : viewH } : { left: 0, bottom: 0 }),
+    [narrow, sheetSnap, viewH],
+  );
+  useBackToClose(narrow && sheetSnap === 'full', () => setSheet('half'));
+  // Dialogs on phones also close with the back button.
+  useBackToClose(narrow && dialog !== null, () => setDialog(null));
+  // Editing needs room: the sheet goes full height, and drops back to half when the form closes.
+  const onEditingChange = useCallback((editing: boolean) => {
+    if (getViewport().layout !== 'narrow') return;
+    setSheet((cur) => (editing ? 'full' : cur === 'full' ? 'half' : cur));
+  }, []);
   const pendingCenter = useRef<string | 'fit' | null>('fit');
 
   // ---- Load persisted state ------------------------------------------------------------
@@ -154,6 +177,7 @@ export default function App() {
       setInstallEvt(e as Event & { prompt: () => Promise<void> });
     };
     window.addEventListener('beforeinstallprompt', onPrompt);
+    preloadLazyUi();
     return () => window.removeEventListener('beforeinstallprompt', onPrompt);
   }, []);
 
@@ -542,6 +566,9 @@ export default function App() {
             <Download size={18} /> <span className="label">{t('export')}</span>
           </button>
           {!narrow && <span className="tool-sep" />}
+          <Suspense fallback={<button disabled className={`tool-btn${popover === 'search' ? ' active' : ''}`} data-testid="btn-search" title={t('searchTitle')}>
+                <Search size={18} /> <span className="label">{t('search')}</span>
+              </button>}>
           <ToolPopover
             open={popover === 'search'}
             onOpenChange={(o) => setPopover(o ? 'search' : null)}
@@ -564,16 +591,20 @@ export default function App() {
                   setSelectedId(id);
                   canvas.current?.centerOn(id, 1);
                 } else focusOn(id);
-                if (narrow) setSidebarHidden(false);
+                if (narrow) setSheet('half');
               }}
             />
           </ToolPopover>
+          </Suspense>
           {wide && <GenerationControl settings={doc.settings} onChange={patchSettings} />}
           {wide && (
             <span className="header-lang">
               <LanguageSelect lang={lang} onChange={changeLang} />
             </span>
           )}
+          <Suspense fallback={<button disabled className={`tool-btn${popover === 'settings' ? ' active' : ''}`} data-testid="btn-settings" title={t('treeSettings')}>
+                <Settings2 size={18} /> <span className="label">{t('treeSettings')}</span>
+              </button>}>
           <ToolPopover
             open={popover === 'settings'}
             onOpenChange={(o) => setPopover(o ? 'settings' : null)}
@@ -587,6 +618,7 @@ export default function App() {
           >
             <SettingsMenu settings={doc.settings} onChange={patchSettings} onClose={() => setPopover(null)} lang={lang} onLang={changeLang} />
           </ToolPopover>
+          </Suspense>
           {wide ? (
             <>
               <button className={`tool-btn${manualMode ? ' active' : ''}`} onClick={toggleManual} data-testid="btn-manual" title={t('manualLayout')}>
@@ -613,6 +645,7 @@ export default function App() {
               )}
             </>
           ) : (
+            <Suspense fallback={<button className="tool-btn" data-testid="btn-more" aria-label={t('moreTools')} disabled><MoreHorizontal size={18} /></button>}>
             <MoreMenu
               open={popover === 'more'}
               onOpenChange={(o) => setPopover(o ? 'more' : null)}
@@ -626,6 +659,7 @@ export default function App() {
               onInstall={() => installEvt?.prompt().then(() => setInstallEvt(null))}
               onReset={() => setDialog({ kind: 'confirmReset' })}
             />
+            </Suspense>
           )}
         </nav>
       </header>
@@ -638,7 +672,9 @@ export default function App() {
           onToggleHidden={() => setSidebarHidden(!sidebarHidden)}
           mediaUrl={mediaUrl}
           manualMode={manualMode}
-          asideRef={sheetRef}
+          sheet={narrow ? sheetSnap : null}
+          onSheetChange={setSheet}
+          onEditingChange={onEditingChange}
           onSave={(id, fields) => {
             if (Object.keys(fields).length) setDoc(updatePerson(doc, id, fields));
           }}
@@ -656,7 +692,7 @@ export default function App() {
           onDeleteImage={() => selectedId && setDialog({ kind: 'confirmDeleteImage', personId: selectedId })}
           onFocus={() => selectedId && focusOn(selectedId)}
         />
-        <div className="stage" ref={stageRef}>
+        <div className="stage">
         <TreeCanvas
           ref={canvas}
           doc={doc}
@@ -671,7 +707,7 @@ export default function App() {
           inset={inset}
           onSelect={(id) => {
             setSelectedId(id);
-            if (id && narrow) setSidebarHidden(false);
+            if (narrow) setSheet(id ? 'half' : 'bar');
           }}
           onAction={onCardAction}
           onDragPerson={(id, delta, done) => {
@@ -724,6 +760,7 @@ export default function App() {
 
       </div>
 
+      <Suspense fallback={null}>
       {dialog?.kind === 'addChild' && (
         <AddChildDialog
           doc={doc}
@@ -821,6 +858,7 @@ export default function App() {
           onNew={() => setDialog({ kind: 'confirmReset' })}
         />
       )}
+      </Suspense>
       {toast && <Toast text={toast.text} kind={toast.kind} onDone={() => setToast(null)} />}
       <KeyboardShortcuts
         onSearch={() => setPopover('search')}

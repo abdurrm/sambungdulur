@@ -1,4 +1,5 @@
-import type { ReactNode, Ref } from 'react';
+import { lazy, Suspense, type ReactNode, type Ref } from 'react';
+import type { SheetSnap } from './sheetSnap';
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Pencil, Trash2, UserPlus, Users, Baby, Heart, ImagePlus, ImageMinus, Crosshair } from 'lucide-react';
 import type { Gender, PersonFields, TreeDoc } from '../model/types';
@@ -10,6 +11,9 @@ import { Tabs } from '@base-ui/react/tabs';
 import { getLang, MONTHS_BY_LANG, t } from '../i18n';
 
 type Tab = 'personal' | 'biography' | 'image';
+
+// The phone sheet (Base UI Drawer) is only needed on narrow screens: load it on demand.
+const SheetFrame = lazy(() => import('./SheetFrame'));
 
 interface Props {
   doc: TreeDoc;
@@ -29,6 +33,10 @@ interface Props {
   manualMode: boolean;
   /** The editor element, measured by the App to know how much of the canvas it covers. */
   asideRef?: Ref<HTMLElement>;
+  /** Set on phones: the editor becomes a draggable bottom sheet at this snap point. */
+  sheet?: SheetSnap | null;
+  onSheetChange?: (snap: SheetSnap) => void;
+  onEditingChange?: (editing: boolean) => void;
 }
 
 const genderLabel = (g: Gender) => (g === 'female' ? t('female') : g === 'male' ? t('male') : t('other'));
@@ -199,6 +207,9 @@ export function Sidebar(props: Props) {
   const [tab, setTab] = useState<Tab>('personal');
   const [editing, setEditing] = useState(false);
   useEffect(() => setEditing(false), [selectedId]);
+  const onEditingChange = props.onEditingChange;
+  useEffect(() => onEditingChange?.(editing), [editing, onEditingChange]);
+  const sheet = props.sheet ?? null;
   const p = selectedId ? doc.persons[selectedId] : undefined;
   const fmt = (v: string) => formatDate(v, doc.settings.dateFormat) || t('unknown');
   const tabLabel = (x: Tab) => (x === 'personal' ? t('tabPersonal') : x === 'biography' ? t('tabBiography') : t('tabImage'));
@@ -241,7 +252,7 @@ export function Sidebar(props: Props) {
     const acts = personActions(doc, p.id, { manualMode: props.manualMode });
     const photoUrl = p.photoId ? props.mediaUrl(p.photoId) : undefined;
     const gallery = doc.gallery[p.id] ?? [];
-    body = (
+    const head = (
       <>
         <div className="person-head">
           <Avatar doc={doc} id={p.id} url={photoUrl} />
@@ -253,6 +264,10 @@ export function Sidebar(props: Props) {
             </div>
           </div>
         </div>
+      </>
+    );
+    const info = (
+      <>
         {tabs}
         {tab === 'personal' && (
           <table className="details" data-testid="personal-table">
@@ -316,7 +331,10 @@ export function Sidebar(props: Props) {
             )}
           </div>
         )}
-        <hr className="sep" />
+      </>
+    );
+    const actions = (
+      <>
         <ActionButton state={acts.edit} className="btn primary" onClick={() => setEditing(true)} testId="edit-person" icon={<Pencil size={16} />} label={t('editPerson')} />
         <div className="section-label">{t('addRelative')}</div>
         <div className="btn-grid">
@@ -325,14 +343,51 @@ export function Sidebar(props: Props) {
           <ActionButton state={acts.addPartner} onClick={props.onAddPartner} testId="add-partner" icon={<Heart size={16} />} label={t('addPartner')} />
           <ActionButton state={acts.addChild} onClick={props.onAddChild} testId="add-child" icon={<Baby size={16} />} label={t('addChild')} />
         </div>
+      </>
+    );
+    const rest = (
+      <>
         <ActionButton state={acts.focus} className="btn ghost" onClick={props.onFocus} testId="focus-person" icon={<Crosshair size={16} />} label={t('showFrom')} />
         <hr className="sep" />
         <ActionButton state={acts.delete} className="btn danger" onClick={props.onDelete} testId="delete-person" icon={<Trash2 size={16} />} label={t('deletePerson')} />
       </>
     );
+    // In the phone sheet the add-relative actions come right after the name so the half-height sheet shows them.
+    body = sheet ? (
+      <>
+        {head}
+        {actions}
+        <hr className="sep" />
+        {info}
+        {rest}
+      </>
+    ) : (
+      <>
+        {head}
+        {info}
+        <hr className="sep" />
+        {actions}
+        {rest}
+      </>
+    );
   }
 
   const toggleLabel = props.hidden ? t('expandMenu') : t('collapseMenu');
+  if (sheet) {
+    return (
+      <Suspense fallback={<div className="sheet-fallback" data-testid="sidebar" data-snap="bar" />}>
+        <SheetFrame
+          snap={sheet}
+          onSnapChange={(v) => props.onSheetChange?.(v)}
+          label={t('editorMenu')}
+          gripLabel={toggleLabel}
+          title={p ? displayName(p, doc.settings) : t('editor')}
+        >
+          {body}
+        </SheetFrame>
+      </Suspense>
+    );
+  }
   return (
     <>
       <aside ref={props.asideRef} className={`sidebar${props.hidden ? ' hidden' : ''}`} data-testid="sidebar" aria-label={t('editorMenu')}>

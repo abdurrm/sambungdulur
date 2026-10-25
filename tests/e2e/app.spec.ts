@@ -5,18 +5,15 @@ import path from 'node:path';
 const fixture = path.resolve('tests/fixtures/synthetic.ged');
 
 async function fresh(page: Page, lang: 'en' | 'id' | 'jv' | null = 'en') {
+  // Every test runs in a new browser context, so storage starts empty. Most tests assert English labels
+  // (the Indonesian default is covered separately): pick the language before the app first loads, so the
+  // starter tree is created in it. A language chosen later in the test (settings, localStorage) is kept.
+  if (lang) {
+    await page.addInitScript((l) => {
+      if (!localStorage.getItem('sambungdulur.lang')) localStorage.setItem('sambungdulur.lang', l);
+    }, lang);
+  }
   await page.goto('/');
-  // Start every test from an empty browser store.
-  await page.evaluate(async () => {
-    localStorage.clear();
-    await new Promise<void>((r) => {
-      const req = indexedDB.deleteDatabase('sambungdulur');
-      req.onsuccess = req.onerror = req.onblocked = () => r();
-    });
-  });
-  // Most tests assert English labels; the app default (Indonesian) is covered separately.
-  if (lang) await page.evaluate((l) => localStorage.setItem('sambungdulur.lang', l), lang);
-  await page.reload();
   await expect(page.getByTestId('tree-canvas')).toBeVisible();
 }
 
@@ -407,12 +404,16 @@ test('header popovers and the overflow menu are keyboard friendly; reset is set 
   await expect(page.locator('html')).toHaveAttribute('data-layout', 'medium');
   await expect(page.getByTestId('btn-theme')).toHaveCount(0);
   const more = page.getByTestId('btn-more');
+  await expect(more).toBeEnabled(); // the menu module loads on demand
   await more.focus();
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('more-menu')).toBeVisible();
   // Arrow keys move through items; Enter runs one and closes the menu.
-  await page.keyboard.press('ArrowDown');
-  await expect(page.getByTestId('more-theme')).toHaveAttribute('data-highlighted', '');
+  // (The menu may still be settling when the first key arrives, so step until the item is reached.)
+  await expect(async () => {
+    await page.keyboard.press('ArrowDown');
+    await expect(page.getByTestId('more-theme')).toHaveAttribute('data-highlighted', '', { timeout: 250 });
+  }).toPass({ timeout: 5000 });
   const before = await page.locator('html').getAttribute('data-theme');
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('more-menu')).toBeHidden();
@@ -484,4 +485,77 @@ test('the tapped person stays visible above the editor sheet @mobile', async ({ 
   await page.getByTestId('search-input').press('Enter');
   await expect(page.getByTestId('selected-name')).toHaveText('My Mother');
   await expectAboveSheet(page, 'My Mother');
+});
+
+async function dragSheet(page: Page, dy: number) {
+  // Wait until the sheet has finished its snap animation before grabbing it.
+  let last = -1;
+  await expect
+    .poll(async () => {
+      const y = (await page.getByTestId('sheet-drag').boundingBox())!.y;
+      const still = Math.abs(y - last) < 0.5;
+      last = y;
+      return still;
+    }, { intervals: [120] })
+    .toBe(true);
+  const b = (await page.getByTestId('sheet-drag').boundingBox())!;
+  const x = b.x + 30, y = b.y + 6;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  for (let i = 1; i <= 10; i++) await page.mouse.move(x, y + (dy * i) / 10);
+  await page.mouse.up();
+}
+
+test('the phone editor is a draggable sheet with bar, half and full heights @mobile', async ({ page }) => {
+  await fresh(page);
+  const sheet = page.getByTestId('sidebar');
+  await expect(sheet).toHaveAttribute('data-snap', 'bar');
+
+  // Tapping a card opens the half sheet with the add-relative actions in reach.
+  await card(page, 'Me').locator('.card-bg').tap({ position: { x: 20, y: 20 } });
+  await expect(sheet).toHaveAttribute('data-snap', 'half');
+  await expect(page.getByTestId('add-sibling')).toBeInViewport({ ratio: 1 });
+  await expectAboveSheet(page, 'Me');
+
+  // Dragging up reaches full height; dragging down steps back one point at a time.
+  await dragSheet(page, -300);
+  await expect(sheet).toHaveAttribute('data-snap', 'full');
+  await dragSheet(page, 200);
+  await expect(sheet).toHaveAttribute('data-snap', 'half');
+  await dragSheet(page, 250);
+  await expect(sheet).toHaveAttribute('data-snap', 'bar');
+
+  // "Edit" opens the full sheet; the back button returns to half without leaving the app.
+  await page.getByTestId('sheet-grip').tap();
+  await expect(sheet).toHaveAttribute('data-snap', 'half');
+  await page.getByTestId('edit-person').tap();
+  await expect(sheet).toHaveAttribute('data-snap', 'full');
+  await expect(page.getByTestId('edit-form')).toBeVisible();
+  const url = page.url();
+  await page.goBack();
+  await expect(sheet).toHaveAttribute('data-snap', 'half');
+  expect(page.url()).toBe(url);
+  await expect(page.getByTestId('tree-canvas')).toBeVisible();
+
+  // Tapping empty canvas collapses the sheet to its bar.
+  await page.getByTestId('tree-canvas').tap({ position: { x: 20, y: 80 } });
+  await expect(sheet).toHaveAttribute('data-snap', 'bar');
+});
+
+test('the back button closes a dialog on phones before leaving the app @mobile', async ({ page }) => {
+  await fresh(page);
+  await card(page, 'Me').locator('.card-bg').tap({ position: { x: 20, y: 20 } });
+  await page.getByTestId('add-child').tap();
+  await expect(page.getByTestId('add-child-dialog')).toBeVisible();
+  await page.goBack();
+  await expect(page.getByTestId('add-child-dialog')).toBeHidden();
+  await expect(page.getByTestId('tree-canvas')).toBeVisible();
+  // Closing a dialog in-app removes its history entry again: no stale back steps pile up.
+  await page.getByTestId('add-child').tap();
+  await page.getByTestId('add-child-dialog').getByRole('button', { name: 'Cancel' }).tap();
+  await expect(page.getByTestId('add-child-dialog')).toBeHidden();
+  const len = await page.evaluate(() => history.length);
+  await page.getByTestId('add-child').tap();
+  await page.getByTestId('add-child-dialog').getByRole('button', { name: 'Cancel' }).tap();
+  expect(await page.evaluate(() => history.length)).toBe(len);
 });
