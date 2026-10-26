@@ -1,5 +1,15 @@
 # Laporan Pengujian — SambungDulur
 
+## 26 Oktober 2026 — hotfix kartu KK mobile dan audit Android
+
+- Reproduksi sebelum perbaikan: `npx playwright test tests/e2e/open_mobile.spec.ts --project mobile` gagal karena lebar ikon hanya **5,375 px** pada viewport 320 px.
+- Setelah kartu memakai badge tetap seperti pilihan impor lain dan judul/deskripsi terpisah, tes yang sama lulus pada lebar **320, 390, dan 435 px**. Ikon minimal 20 px, badge 46×46 px, tidak ada overflow horizontal, dan kartu tetap membuka dialog KK.
+- Pemeriksaan visual lokal pada 390×844 px dalam tema terang dan gelap: ikon dan teks tersusun konsisten dengan kartu lain.
+- `npm test`: **103/103 lulus**; `npm run build`: **lulus**.
+- `npx playwright test`: **70/70 lulus dalam satu run penuh**, mencakup desktop dan emulasi ponsel, termasuk tes regresi kartu KK baru.
+- Audit situs publik pada profil browser normal Microsoft Edge/Chromium: manifest tanpa kesalahan, ikon PNG aktual 192/512 px merespons 200, service worker aktif dan mengendalikan halaman, `Page.getInstallabilityErrors` kosong. Profil Playwright sementara/incognito sebelumnya hanya melaporkan `in-incognito`; pemeriksaan diulang menggunakan profil normal terpisah.
+- Hasil audit browser Windows dengan viewport mobile bukan bukti pemasangan pada perangkat Android fisik atau kesiapan paket Play Store. Petunjuk dan kebutuhan yang tersisa ada di [panduan Android](docs/ANDROID-DAN-PLAYSTORE.md).
+
 ## v1.0.1 — pemeriksaan pra-rilis 26 Oktober 2026
 
 - `npm test`: **103/103 lulus**, 14 berkas.

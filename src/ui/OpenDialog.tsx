@@ -36,7 +36,11 @@ export function OpenDialog(props: {
     <Modal title={t('openDialogTitle')} onClose={() => !busy && props.onClose()} wide testId="open-dialog">
       <p className="note" style={{ fontSize: 13.5 }}>{t('openIntro')}</p>
       <button className="choice" onClick={props.onImportKk} disabled={busy} data-testid="open-import-kk">
-        <Icon id="openFile" size={20} /><span><span className="t">{t('kkImport')}</span><span className="d">{t('kkIntro')}</span></span>
+        <span className="badge" style={{ color: 'var(--accent-text)', background: 'var(--accent-soft)' }}><Icon id="openFile" size={20} /></span>
+        <span>
+          <div className="t">{t('kkImport')}</div>
+          <div className="d">{t('kkIntro')}</div>
+        </span>
       </button>
       <label className="choice" style={cursor}>
         <span className="badge" style={{ color: 'var(--accent-text)', background: 'var(--accent-soft)' }}><Icon id="openFile" size={20} /></span>

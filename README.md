@@ -128,6 +128,10 @@ src/
 tests/unit    Vitest      tests/e2e   Playwright      tests/fixtures  GEDCOM sintetis
 ```
 
+## Android dan Play Store
+
+Situs sudah memiliki dukungan PWA untuk instalasi melalui browser. Lihat [cara memasang di Android, hasil pemeriksaan PWA, dan langkah publikasi Google Play](docs/ANDROID-DAN-PLAYSTORE.md).
+
 ## Berkontribusi
 
 Laporan bug, perbaikan, terjemahan, dan dokumentasi sangat diterima. Baca [CONTRIBUTING.md](CONTRIBUTING.md) terlebih dahulu. Aturan terpenting: **jangan pernah mengunggah data keluarga nyata** ke commit, issue, atau screenshot; pakai data fiktif di `docs/demo`.
