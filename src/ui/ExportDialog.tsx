@@ -7,8 +7,11 @@ import { exportGenealogyText } from '../io/textExport';
 import { buildExportSvg, downloadBlob, rasterize, safeFileName, type ImageBackground } from '../io/imageExport';
 import { Modal } from './dialogs';
 import { t, type Key } from '../i18n';
+import { exportBranch } from '../model/exportBranch';
+import { buildSambung } from '../io/sambungFile';
+import { PersonPicker } from './PersonPicker';
 
-type Kind = 'png' | 'jpeg' | 'svg' | 'ged' | 'txt';
+type Kind = 'png' | 'jpeg' | 'svg' | 'ged' | 'txt' | 'sambung';
 
 const KINDS: { kind: Kind; label: Key; desc: Key; color: string }[] = [
   { kind: 'png', label: 'kPng', desc: 'kPngDesc', color: '#4338ca' },
@@ -16,6 +19,7 @@ const KINDS: { kind: Kind; label: Key; desc: Key; color: string }[] = [
   { kind: 'svg', label: 'kSvg', desc: 'kSvgDesc', color: '#b45309' },
   { kind: 'ged', label: 'kGed', desc: 'kGedDesc', color: '#0f766e' },
   { kind: 'txt', label: 'kTxt', desc: 'kTxtDesc', color: '#57534e' },
+  { kind: 'sambung', label: 'kSambung', desc: 'kSambungDesc', color: '#0f766e' },
 ];
 
 const DENSITY_LABEL: Record<Density, Key> = { compact: 'compact', normal: 'normal', detailed: 'detailed' };
@@ -28,12 +32,14 @@ export function ExportDialog(props: {
   onClose: () => void;
   onDone: (msg: string) => void;
 }) {
-  const { doc } = props;
   const [kind, setKind] = useState<Kind>('png');
   const [density, setDensity] = useState<Density>('normal');
   const [background, setBackground] = useState<ImageBackground>('canvas');
   const [scale, setScale] = useState(2);
-  const [scope, setScope] = useState<'view' | 'all'>('view');
+  const [scope, setScope] = useState<'view' | 'all' | 'branch'>('view');
+  const [rootId, setRootId] = useState(props.focusId);
+  const [includePartners, setIncludePartners] = useState(false);
+  const [includePrivate, setIncludePrivate] = useState(false);
   const [legend, setLegend] = useState(true);
   const [gedZip, setGedZip] = useState(false);
   const [rewritePaths, setRewritePaths] = useState(false);
@@ -42,20 +48,33 @@ export function ExportDialog(props: {
   const [txtAll, setTxtAll] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const branch = scope === 'branch';
+  const doc = branch ? exportBranch(props.doc, rootId, { partners: includePartners, privateData: includePrivate }) : props.doc;
+  const exportFocus = branch ? rootId : props.focusId;
   const base = safeFileName(doc.title);
-  const up = scope === 'all' ? -1 : doc.settings.ancestorGenerations;
-  const down = scope === 'all' ? -1 : doc.settings.descendantGenerations;
+  const up = branch ? 0 : scope === 'all' ? -1 : doc.settings.ancestorGenerations;
+  const down = branch || scope === 'all' ? -1 : doc.settings.descendantGenerations;
   const gen = (v: number) => (v < 0 ? t('all') : String(v));
 
   const run = async () => {
     setBusy(true);
     setError('');
     try {
-      if (kind === 'png' || kind === 'jpeg' || kind === 'svg') {
+      if (kind === 'sambung') {
+        const media = new Map<string, Uint8Array>();
+        for (const [id, item] of Object.entries(doc.media)) {
+          if (!item.available || (item.document && !includePrivate)) continue;
+          const blob = await props.getMediaBlob(id);
+          if (blob) media.set(id, new Uint8Array(await blob.arrayBuffer()));
+        }
+        const bytes = buildSambung(doc, media, { includeDocuments: includePrivate });
+        downloadBlob(new Blob([bytes as BlobPart], { type: 'application/zip' }), `${base}.sambung`);
+        props.onDone(t('exported', { file: `${base}.sambung` }));
+      } else if (kind === 'png' || kind === 'jpeg' || kind === 'svg') {
         const bg: ImageBackground = kind === 'jpeg' && background === 'transparent' ? 'white' : background;
         const { svg, width, height, backdrop } = await buildExportSvg(
           doc,
-          { density, background: bg, scale, legend, focusId: props.focusId, ancestors: up, descendants: down },
+          { density, background: bg, scale, legend, focusId: exportFocus, ancestors: up, descendants: down },
           props.getMediaBlob,
         );
         if (kind === 'svg') {
@@ -92,7 +111,7 @@ export function ExportDialog(props: {
           const files: Record<string, Uint8Array> = { [`${base}.ged`]: strToU8(text) };
           let n = 0;
           for (const [id, m] of Object.entries(doc.media)) {
-            if (!m.available || m.background) continue;
+            if (!m.available || m.background || (m.document && !includePrivate)) continue;
             const blob = await props.getMediaBlob(id);
             if (!blob) continue;
             files[mediaPath(id)] = new Uint8Array(await blob.arrayBuffer());
@@ -103,7 +122,7 @@ export function ExportDialog(props: {
         }
       } else {
         const text = exportGenealogyText(doc, {
-          focusId: props.focusId,
+          focusId: exportFocus,
           ancestors: up,
           descendants: down,
           includeFacts: txtFacts,
@@ -126,7 +145,7 @@ export function ExportDialog(props: {
     <Modal title={t('exportTitle')} onClose={() => !busy && props.onClose()} wide testId="export-dialog">
       <div className="choice-list">
         {KINDS.map((k) => (
-          <button key={k.kind} className={`choice${kind === k.kind ? ' selected' : ''}`} onClick={() => setKind(k.kind)} data-testid={`export-kind-${k.kind}`}>
+          <button key={k.kind} className={`choice${kind === k.kind ? ' selected' : ''}`} onClick={() => { setKind(k.kind); if ((k.kind === 'ged' || k.kind === 'sambung') && scope === 'view') setScope('all'); }} data-testid={`export-kind-${k.kind}`}>
             <span className="badge" style={{ color: '#fff', background: k.color }}>{k.kind.toUpperCase()}</span>
             <span>
               <div className="t">{t(k.label)}</div>
@@ -135,19 +154,28 @@ export function ExportDialog(props: {
           </button>
         ))}
       </div>
-      {(image || kind === 'txt') && (
+      {(
         <div className="field">
           {t('peopleToInclude')}
           <div className="seg">
-            <button className={scope === 'view' ? 'on' : ''} onClick={() => setScope('view')} data-testid="export-scope-view">
+            {(image || kind === 'txt') && <button className={scope === 'view' ? 'on' : ''} onClick={() => setScope('view')} data-testid="export-scope-view">
               {t('currentView', { up: gen(doc.settings.ancestorGenerations), down: gen(doc.settings.descendantGenerations) })}
-            </button>
+            </button>}
             <button className={scope === 'all' ? 'on' : ''} onClick={() => setScope('all')} data-testid="export-scope-all">
               {t('wholeFamily')}
             </button>
+            <button className={branch ? 'on' : ''} onClick={() => setScope('branch')} data-testid="export-scope-branch">{t('branchScope')}</button>
           </div>
         </div>
       )}
+      {branch && <>
+        <PersonPicker doc={props.doc} value={rootId} onChange={(id) => id && setRootId(id)} label={t('branchRoot')} testId="export-branch-root" />
+        <label className="check"><input type="checkbox" checked={includePartners} onChange={(e) => setIncludePartners(e.target.checked)} data-testid="export-branch-partners" />{t('branchPartners')}</label>
+        <label className="check"><input type="checkbox" checked={includePrivate} onChange={(e) => setIncludePrivate(e.target.checked)} data-testid="export-branch-private" />{t('branchPrivate')}</label>
+        <p className="note">{t('branchPrivateHelp')}</p>
+        <p role="status" data-testid="export-branch-count">{doc.title} · {t('people', { n: doc.order.length })}</p>
+      </>}
+      {!branch && kind === 'sambung' && <label className="check"><input type="checkbox" checked={includePrivate} onChange={(e) => setIncludePrivate(e.target.checked)} />{t('kkSaveOriginals')}</label>}
       {image && (
         <>
           <div className="field">

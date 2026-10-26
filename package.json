@@ -1,6 +1,6 @@
 {
   "name": "sambungdulur",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "SambungDulur — offline family tree builder (PWA): GEDCOM & MyHeritage import, archify-style tree, PNG/GEDCOM/text export.",
   "type": "module",
   "scripts": {
@@ -15,13 +15,16 @@
   "dependencies": {
     "@base-ui/react": "^1.9.0",
     "@phosphor-icons/react": "^2.1.10",
+    "@tesseract.js-data/ind": "^1.0.0",
     "d3-selection": "^3.0.0",
     "d3-transition": "^3.0.1",
     "d3-zoom": "^3.0.0",
     "fflate": "^0.8.3",
+    "pdfjs-dist": "^6.4.299",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "sql.js": "^1.15.1"
+    "sql.js": "^1.15.1",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",

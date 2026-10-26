@@ -500,3 +500,22 @@ html[data-layout='narrow'] .header { padding-left: max(8px, env(safe-area-inset-
 .onboarding-x { border: 0; background: transparent; color: var(--dim); width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; }
 html[data-pointer='coarse'] .onboarding-x { width: 44px; height: 44px; }
 .onboarding-ok { width: auto; margin-left: auto; padding: 0 16px; }
+/* Reviewed KK imports: keep the dialog actions visible on desktop and touch screens. */
+.kk-scroll { max-height: min(65vh, 650px); overflow: auto; padding: 2px 4px; }
+.kk-scroll fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.kk-person, .kk-source { border: 1px solid var(--panel-border); border-radius: 12px; padding: 12px; margin: 12px 0; overflow-wrap: anywhere; }
+.kk-person h4 { margin: 0 0 12px; }
+.kk-person h4 small { display: block; font-weight: normal; color: var(--muted); }
+.kk-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.kk-scroll .field { min-width: 0; }
+.kk-scroll .input, .kk-scroll input, .kk-scroll select { max-width: 100%; width: 100%; box-sizing: border-box; }
+.kk-scroll .check input { width: auto; }
+.kk-scroll .check { align-items: flex-start; line-height: 1.5; }
+.kk-conflict { color: var(--danger, #b91c1c); }
+.kk-raw { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; max-height: 240px; overflow: auto; }
+@media (max-width: 760px) { .kk-fields { grid-template-columns: 1fr; } .kk-scroll { max-height: 60vh; } }
+.feedback-form { display: grid; gap: 12px; max-height: 62vh; overflow: auto; padding: 2px 4px; }
+.feedback-form .field { margin: 0; min-width: 0; }
+.feedback-form .input { width: 100%; box-sizing: border-box; }
+.feedback-form .check { display: flex; gap: 8px; align-items: flex-start; line-height: 1.5; }
+.feedback-form textarea { resize: vertical; }

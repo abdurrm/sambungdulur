@@ -11,8 +11,8 @@ import type { TreeDoc } from '../model/types';
 import { DEFAULT_SETTINGS } from '../model/types';
 
 export const SAMBUNG_FORMAT = 'sambungdulur';
-/** 2: tree settings carry the canvas background. Version 1 files open with the default grid. */
-export const SAMBUNG_VERSION = 2;
+/** 3 adds reviewed KK sources/private documents; versions 1/2 still open with defaults. */
+export const SAMBUNG_VERSION = 3;
 
 export interface SambungManifest {
   format: string;
@@ -26,8 +26,10 @@ export interface SambungManifest {
 const extOf = (mime: string, name: string) =>
   name.includes('.') ? name.split('.').pop()!.toLowerCase() : mime === 'image/png' ? 'png' : 'jpg';
 
-export function buildSambung(doc: TreeDoc, media: Map<string, Uint8Array>): Uint8Array {
+export function buildSambung(doc: TreeDoc, media: Map<string, Uint8Array>, opts: { includeDocuments?: boolean } = {}): Uint8Array {
   const { gedcomSource, ...rest } = doc;
+  const included = new Map([...media].filter(([id]) => doc.media[id] && (!doc.media[id].document || opts.includeDocuments)));
+  rest.media = Object.fromEntries(Object.entries(doc.media).map(([id, item]) => [id, { ...item, available: included.has(id) }]));
   const files: Record<string, Uint8Array> = {};
   const manifest: SambungManifest = {
     format: SAMBUNG_FORMAT,
@@ -35,12 +37,12 @@ export function buildSambung(doc: TreeDoc, media: Map<string, Uint8Array>): Uint
     savedAt: new Date().toISOString(),
     individuals: doc.order.length,
     families: doc.familyOrder.length,
-    media: media.size,
+    media: included.size,
   };
   files['manifest.json'] = strToU8(JSON.stringify(manifest, null, 2));
   files['tree.json'] = strToU8(JSON.stringify(rest));
   if (gedcomSource !== undefined) files['source.ged'] = strToU8(gedcomSource);
-  for (const [id, bytes] of media) {
+  for (const [id, bytes] of included) {
     const item = doc.media[id];
     if (!item) continue;
     files[`media/${id}.${extOf(item.mime, item.fileName)}`] = bytes;
@@ -77,6 +79,7 @@ export function parseSambung(bytes: Uint8Array): { doc: TreeDoc; media: Map<stri
   doc.compactCards ??= {};
   doc.gallery ??= {};
   doc.media ??= {};
+  for (const id of Object.keys(doc.media)) doc.media[id] = { ...doc.media[id], available: false };
   const media = new Map<string, Uint8Array>();
   for (const [name, data] of Object.entries(files)) {
     const m = /^media\/([^/.]+)\.\w+$/.exec(name);

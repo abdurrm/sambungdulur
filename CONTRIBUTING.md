@@ -8,6 +8,7 @@ Terima kasih sudah tertarik membantu. SambungDulur adalah pembuat pohon keluarga
 
 1. **Jangan pernah menyertakan data keluarga nyata** di commit, issue, screenshot, atau fixture. Pakai data fiktif seperti `docs/demo/keluarga-contoh.ged` atau `tests/fixtures/synthetic.ged`. Berkas `*.ged`, `*.zip`, `*.ftb`, dan `*.sambung` diabaikan git secara bawaan; jangan mengubahnya kecuali untuk fixture fiktif.
 2. **Privasi adalah fitur.** Aplikasi tidak boleh mengirim data pengguna ke jaringan, memakai analitik, atau memerlukan akun. Kode baru yang melakukan permintaan jaringan akan ditolak kecuali untuk memuat aplikasi itu sendiri.
+   Pengecualian yang dipilih pengguna: form Feedback menyiapkan teks yang ditulis pengguna dan membuka halaman GitHub setelah konfirmasi bahwa isinya boleh dipublikasikan. Tidak ada pengiriman otomatis, token GitHub di aplikasi, atau lampiran data silsilah/KK. Informasi browser hanya dimasukkan jika pengguna memilihnya; pengiriman akhir dilakukan pengguna di GitHub.
 3. **Jangan menyalin kode, teks, atau gambar dari situs lain** (termasuk family-tree-builder.com). Perilaku boleh dipelajari; implementasi harus karya sendiri.
 4. **GEDCOM harus tetap lossless.** Berkas yang dibuka lalu diekspor tanpa perubahan harus identik byte-per-byte, dan edit hanya boleh menulis ulang baris yang berubah.
 

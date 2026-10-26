@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import type { Icon as PhosphorIcon, IconWeight } from '@phosphor-icons/react';
 import { ArrowCounterClockwise } from '@phosphor-icons/react/dist/csr/ArrowCounterClockwise';
 import { Baby } from '@phosphor-icons/react/dist/csr/Baby';
+import { ChatCircleDots } from '@phosphor-icons/react/dist/csr/ChatCircleDots';
 import { CaretDown } from '@phosphor-icons/react/dist/csr/CaretDown';
 import { CaretLeft } from '@phosphor-icons/react/dist/csr/CaretLeft';
 import { CaretRight } from '@phosphor-icons/react/dist/csr/CaretRight';
@@ -71,6 +72,7 @@ const ICONS = {
   themeDark: Moon,
   themeLight: deferred('Sun'),
   help: Question,
+  feedback: ChatCircleDots,
   install: deferred('MonitorArrowUp'),
   more: DotsThree,
   shortcuts: deferred('Keyboard'),

@@ -14,6 +14,7 @@ export function OpenDialog(props: {
   onNew: () => void;
   onClose: () => void;
   missingMedia: number;
+  onImportKk: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [report, setReport] = useState<OpenReport | null>(null);
@@ -34,6 +35,9 @@ export function OpenDialog(props: {
   return (
     <Modal title={t('openDialogTitle')} onClose={() => !busy && props.onClose()} wide testId="open-dialog">
       <p className="note" style={{ fontSize: 13.5 }}>{t('openIntro')}</p>
+      <button className="choice" onClick={props.onImportKk} disabled={busy} data-testid="open-import-kk">
+        <Icon id="openFile" size={20} /><span><span className="t">{t('kkImport')}</span><span className="d">{t('kkIntro')}</span></span>
+      </button>
       <label className="choice" style={cursor}>
         <span className="badge" style={{ color: 'var(--accent-text)', background: 'var(--accent-soft)' }}><Icon id="openFile" size={20} /></span>
         <span>

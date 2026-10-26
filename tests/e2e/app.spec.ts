@@ -60,6 +60,7 @@ test.describe('family tree editor', () => {
 
     await card(page, 'Me').locator('.card-bg').click({ position: { x: 20, y: 20 } });
     await page.getByTestId('add-partner').click();
+    await page.getByTestId('add-partner-submit').click();
     await expect(persons(page)).toHaveCount(5);
     const partnerName = await page.getByTestId('selected-name').textContent();
     expect(partnerName).toBe('Partner of Me');
@@ -297,6 +298,7 @@ test('defaults to Indonesian and switches to Javanese and English', async ({ pag
   await expect(page.getByTestId('btn-open')).toContainText('Bukak');
   await expect(page.getByTestId('add-partner')).toContainText('Tambah bojo');
   await page.getByTestId('add-partner').click();
+    await page.getByTestId('add-partner-submit').click();
   await expect(page.getByTestId('selected-name')).toHaveText('Bojoné Saudara dari Saya');
 
   await setLangViaSettings(page, 'en');
@@ -774,7 +776,8 @@ test('long-press on a card opens its action menu without panning @mobile', async
   await expect(page.getByTestId('person-menu')).toBeVisible();
   const after = (await bg.boundingBox())!;
   expect(Math.abs(after.x - before.x) + Math.abs(after.y - before.y)).toBeLessThan(2);
-  await page.getByTestId('pm-addPartner').tap(); // adds exactly one person
+  await page.getByTestId('pm-addPartner').tap();
+  await page.getByTestId('add-partner-submit').tap(); // adds exactly one person after confirmation
   await expect(persons(page)).toHaveCount(4);
 
 });
@@ -1815,6 +1818,7 @@ test('person shortcuts: P S A C add relatives, F focuses, E edits, I picks a pho
   await page.keyboard.press('Home');
   await expect(page.getByTestId('selected-name')).toHaveText('Me');
   await page.keyboard.press('a');
+  await page.getByTestId('add-partner-submit').click();
   await expect(persons(page)).toHaveCount(5);
   await expect(page.getByTestId('selected-name')).toHaveText('Partner of Me');
   await page.keyboard.press('Home');

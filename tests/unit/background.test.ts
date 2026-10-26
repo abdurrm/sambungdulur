@@ -47,7 +47,7 @@ describe('canvas background', () => {
     const doc = createDefaultTree();
     doc.settings = { ...doc.settings, background: { kind: 'solid', preset: 'sky' } };
     const back = parseSambung(buildSambung(doc, new Map()));
-    expect(back.manifest.version).toBe(2);
+    expect(back.manifest.version).toBe(3);
     expect(back.doc.settings.background).toEqual({ kind: 'solid', preset: 'sky' });
 
     const { background: _drop, ...oldSettings } = createDefaultTree().settings;

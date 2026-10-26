@@ -18,6 +18,7 @@ export default function MoreMenu(props: {
   onInstall: () => void;
   onReset: () => void;
   onShortcuts: () => void;
+  onFeedback: () => void;
 }) {
   return (
     <Menu.Root open={props.open} onOpenChange={props.onOpenChange}>
@@ -43,6 +44,7 @@ export default function MoreMenu(props: {
             <Menu.LinkItem className="menu-item" href={GUIDE_URL} target="_blank" rel="noopener noreferrer" closeOnClick data-testid="more-help">
               <Icon id="help" size={16} /> {t('help')}
             </Menu.LinkItem>
+            <Menu.Item className="menu-item" onClick={props.onFeedback} data-testid="more-feedback"><Icon id="feedback" size={16} />{t('feedback')}</Menu.Item>
             {props.canInstall && (
               <Menu.Item className="menu-item" onClick={props.onInstall}>
                 <Icon id="install" size={16} /> {t('installApp')}

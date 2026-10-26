@@ -175,7 +175,7 @@ function DateInput(props: { label: string; value: string; onChange: (v: string) 
 export interface FormControl {
   /** Read at the moment of leaving (not via state), so a key pressed right after typing is still caught. */
   isDirty: () => boolean;
-  save: () => void;
+  save: () => boolean;
   discard: () => void;
 }
 
@@ -189,15 +189,19 @@ function EditForm(props: {
 }) {
   const p = props.doc.persons[props.id];
   const [f, setF] = useState<PersonFields>({ ...p });
+  const [error, setError] = useState('');
   const set = <K extends keyof PersonFields>(k: K, v: PersonFields[K]) => setF((s) => ({ ...s, [k]: v }));
   const keys = Object.keys(f) as (keyof PersonFields)[];
   const dirty = keys.some((k) => f[k] !== p[k]);
   const save = () => {
+    if (f.nik && !/^\d{16}$/.test(f.nik)) { setError(t('kkNikInvalid')); return false; }
+    if (f.nik && Object.values(props.doc.persons).some((person) => person.id !== p.id && person.nik === f.nik)) { setError(t('kkNikDuplicate')); return false; }
     const changed: Partial<PersonFields> = {};
     keys.forEach((k) => {
       if (f[k] !== p[k]) (changed as Record<string, unknown>)[k] = typeof f[k] === 'string' ? (f[k] as string).replace(/\s+$/, '') : f[k];
     });
     props.onSave(changed);
+    return true;
   };
   if (props.control) props.control.current = { isDirty: () => dirty, save, discard: props.onCancel };
   useEffect(() => {
@@ -266,7 +270,9 @@ function EditForm(props: {
           {t('factsBio')}
           <textarea value={f.facts} onChange={(e) => set('facts', e.target.value)} data-testid="f-facts" />
         </label>
+        {([['nik','kkNik'],['religion','kkReligion'],['education','kkEducation'],['nationality','kkNationality']] as const).map(([field,label]) => <label className="field" key={field}>{t(label)}<input type="text" value={f[field] ?? ''} onChange={(e) => { set(field,e.target.value); setError(''); }} data-testid={`f-${field}`} /></label>)}
       </div>
+      {error && <p className="error-text" role="alert">{error}</p>}
       {props.tab === 'image' && <p className="note">{t('imageTabNote')}</p>}
       <div className="row">
         <button type="button" className="btn ghost" onClick={props.onCancel}>{t('cancel')}</button>
@@ -439,6 +445,10 @@ export function Sidebar(props: Props) {
               <tr><th>{t('placeOfBirth')}</th><td>{p.birthPlace || '—'}</td></tr>
               <tr><th>{t('profession')}</th><td>{p.profession || '—'}</td></tr>
               <tr><th>{t('facts')}</th><td>{p.facts || '—'}</td></tr>
+              {p.nik && <tr><th>{t('kkNik')}</th><td>{p.nik}</td></tr>}
+              {p.religion && <tr><th>{t('kkReligion')}</th><td>{p.religion}</td></tr>}
+              {p.education && <tr><th>{t('kkEducation')}</th><td>{p.education}</td></tr>}
+              {p.nationality && <tr><th>{t('kkNationality')}</th><td>{p.nationality}</td></tr>}
             </tbody>
           </table>
         )}

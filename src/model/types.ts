@@ -17,6 +17,11 @@ export interface PersonFields {
   facts: string;
   /** Media id of the primary photo, or '' for none. */
   photoId: string;
+  /** Private optional values from reviewed family-card sources. Never infer identity from a name alone. */
+  nik?: string;
+  religion?: string;
+  education?: string;
+  nationality?: string;
 }
 
 export interface Person extends PersonFields {
@@ -67,6 +72,17 @@ export interface MediaItem {
   available: boolean;
   /** The canvas background picture (not a person's photo): left out of GEDCOM exports. */
   background?: true;
+  /** Original private source document; excluded from ordinary photo/GEDCOM exports. */
+  document?: true;
+}
+
+export interface KkSource {
+  id: string;
+  fileName: string;
+  anchorId: string;
+  importedAt: string;
+  mediaId?: string;
+  claims: { personId: string; page: number; row: number; rowKey?: string; fields: Partial<PersonFields>; fatherId?: string; motherId?: string }[];
 }
 
 /** Manual layout adjustments, relative to the automatic layout so they survive re-layout. */
@@ -76,6 +92,7 @@ export interface ManualLayout {
 }
 
 export interface TreeDoc {
+  kkSources?: Record<string, KkSource>;
   title: string;
   persons: Record<string, Person>;
   families: Record<string, Family>;

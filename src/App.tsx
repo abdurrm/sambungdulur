@@ -7,7 +7,7 @@ import { DEFAULT_SETTINGS } from './model/types';
 import { createDefaultTree } from './model/defaultTree';
 import {
   addChild, addParents, addPartner, addSibling, deleteBlocker, deletePerson, displayName, RelationError, updatePerson, type AddChildMode,
-  components,
+  components, linkPartner,
 } from './model/relations';
 import { selectVisible } from './layout/visible';
 import { computeLayout, lineage } from './layout/layout';
@@ -35,6 +35,8 @@ import { kinNeighbour } from './model/kinNav';
 import { stepGeneration } from './model/generations';
 import { personLabel } from './model/a11y';
 import { ONBOARDED_KEY, OnboardingHint } from './ui/OnboardingHint';
+import { applyKkDraft, type KkDraft } from './kk/review';
+import { APP_VERSION } from './version';
 
 // Loaded on demand (and precached by the service worker for offline use): not needed for the first view.
 const loadDialogs = () => import('./ui/dialogs');
@@ -86,10 +88,18 @@ const POPUP_RESERVE = 384;
 const CropDialog = lazy(() => import('./ui/CropDialog').then((m) => ({ default: m.CropDialog })));
 const ExportDialog = lazy(() => import('./ui/ExportDialog').then((m) => ({ default: m.ExportDialog })));
 const OpenDialog = lazy(() => import('./ui/OpenDialog').then((m) => ({ default: m.OpenDialog })));
+const LinkPartnerDialog = lazy(() => import('./ui/LinkPartnerDialog'));
+const KkImportDialog = lazy(() => import('./ui/KkImportDialog'));
+const FeedbackDialog = lazy(() => import('./ui/FeedbackDialog'));
+const Modal = lazy(() => loadDialogs().then((m) => ({ default: m.Modal })));
 
 type Dialog =
   | null
   | { kind: 'addChild'; personId: string }
+  | { kind: 'addPartner'; personId: string }
+  | { kind: 'kk' }
+  | { kind: 'feedback' }
+  | { kind: 'saveOptions' }
   | { kind: 'confirmDelete'; personId: string }
   | { kind: 'confirmReset' }
   | { kind: 'confirmDeleteImage'; personId: string }
@@ -201,6 +211,7 @@ export default function App() {
   const photoTarget = useRef<string | null>(null);
   const [popover, setPopover] = useState<null | 'settings' | 'search' | 'more' | 'gens'>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
+  const [saveOriginals, setSaveOriginals] = useState(false);
   // Screen-reader announcements (polite live region); toasts announce themselves.
   const [announcement, setAnnouncement] = useState('');
   const announce = (text: string) => setAnnouncement((cur) => (cur === text ? `${text} ` : text));
@@ -483,7 +494,7 @@ export default function App() {
         run(() => addSibling(doc, id), true);
         break;
       case 'addPartner':
-        run(() => addPartner(doc, id), true);
+        setDialog({ kind: 'addPartner', personId: id });
         break;
       case 'addChild':
         setDialog({ kind: 'addChild', personId: id });
@@ -552,9 +563,9 @@ export default function App() {
     }
     return media;
   };
-  const saveFile = async () => {
+  const writeFile = async (includeDocuments = false) => {
     try {
-      const bytes = buildSambung(doc, await collectMedia());
+      const bytes = buildSambung(doc, await collectMedia(), { includeDocuments });
       downloadBlob(new Blob([bytes as BlobPart], { type: 'application/zip' }), `${safeFileName(doc.title)}.sambung`);
       setDirty(false);
       savedRef.current = doc;
@@ -562,6 +573,26 @@ export default function App() {
     } catch (e) {
       notify(t('toastSaveFailed', { msg: e instanceof Error ? e.message : String(e) }), { kind: 'error' });
     }
+  };
+
+  const saveFile = async () => {
+    if (Object.values(doc.media).some((m) => m.document && m.available)) setDialog({ kind: 'saveOptions' });
+    else await writeFile();
+  };
+
+  const importKk = async (draft: KkDraft, original: File) => {
+    const before = docRef.current!;
+    const next = applyKkDraft(before, draft);
+    const mediaId = `K${draft.id}`;
+    const source = next.kkSources![draft.id];
+    const value: TreeDoc = {
+      ...next, kkSources: { ...next.kkSources, [draft.id]: { ...source, mediaId } },
+      media: { ...next.media, [mediaId]: { id: mediaId, fileName: original.name, mime: draft.mime, sourcePath: '', available: true, document: true } },
+    };
+    await store.saveDocWithMedia(value, mediaId, original);
+    setDoc(value);
+    pendingCenter.current = 'fit';
+    notify(t('kkApplied'), { action: { label: t('undo'), onClick: () => undoRef.current() } });
   };
 
   const replaceDoc = async (next: TreeDoc, media: Map<string, { bytes: Uint8Array; mime: string }>) => {
@@ -926,7 +957,7 @@ export default function App() {
   const comps = doc.order.length > 1 && visible.hiddenCount > 0 ? components(doc).length : 1;
 
   return (
-    <div className="app">
+    <div className="app" data-app-version={APP_VERSION}>
       <header className="header">
         <div className="brand" hidden={narrow}>
           <Logo size={28} />
@@ -1045,6 +1076,7 @@ export default function App() {
               <a className="tool-btn" href={GUIDE_URL} target="_blank" rel="noopener noreferrer" {...tip(t('helpTitle'))} data-testid="btn-help">
                 <Icon id="help" />
               </a>
+              <button className="tool-btn" onClick={() => whenClean(() => setDialog({ kind: 'feedback' }))} {...tip(t('feedback'))} data-testid="btn-feedback"><Icon id="feedback" /></button>
               {installEvt && (
                 <button className="tool-btn" onClick={() => installEvt.prompt().then(() => setInstallEvt(null))} {...tip(t('installApp'))}>
                   <Icon id="install" /> <span className="label">{t('install')}</span>
@@ -1066,6 +1098,7 @@ export default function App() {
               onInstall={() => installEvt?.prompt().then(() => setInstallEvt(null))}
               onReset={() => setDialog({ kind: 'confirmReset' })}
               onShortcuts={() => setDialog({ kind: 'shortcuts' })}
+              onFeedback={() => whenClean(() => setDialog({ kind: 'feedback' }))}
             />
             </Suspense>
           )}
@@ -1245,6 +1278,17 @@ export default function App() {
           }}
         />
       )}
+      {dialog?.kind === 'addPartner' && <LinkPartnerDialog doc={doc} personId={dialog.personId} onClose={() => setDialog(null)} onAdd={(existingId) => {
+        setDialog(null);
+        run(() => existingId ? linkPartner(doc, dialog.personId, existingId) : addPartner(doc, dialog.personId), !existingId);
+      }} />}
+      {dialog?.kind === 'kk' && <KkImportDialog doc={doc} selectedId={selectedId ?? focusId} getMediaBlob={store.getMedia} onClose={() => setDialog(null)} onApply={importKk} />}
+      {dialog?.kind === 'feedback' && <FeedbackDialog onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'saveOptions' && <Modal title={t('saveTitle')} onClose={() => setDialog(null)} testId="save-options">
+        <p className="note">{t('kkSaveHelp')}</p>
+        <label className="check"><input type="checkbox" checked={saveOriginals} onChange={(e) => setSaveOriginals(e.target.checked)} data-testid="save-originals" />{t('kkSaveOriginals')}</label>
+        <div className="actions"><button className="btn ghost" onClick={() => setDialog(null)}>{t('cancel')}</button><button className="btn primary" onClick={() => { setDialog(null); void writeFile(saveOriginals); }} data-testid="save-options-submit">{t('save')}</button></div>
+      </Modal>}
       {dialog?.kind === 'confirmDelete' && (
         <ConfirmDialog
           title={t('deletePersonTitle')}
@@ -1317,7 +1361,7 @@ export default function App() {
           name={selectedId && doc.persons[selectedId] ? displayName(doc.persons[selectedId], doc.settings) : ''}
           onCancel={() => setDialog(null)}
           onSave={() => {
-            formControl.current?.save();
+            if (formControl.current?.save() === false) return;
             setDialog(null);
             dialog.next();
           }}
@@ -1348,6 +1392,7 @@ export default function App() {
           onOpenFile={openFile}
           onLinkFolder={linkFolder}
           onNew={() => setDialog({ kind: 'confirmReset' })}
+          onImportKk={() => whenClean(() => setDialog({ kind: 'kk' }))}
         />
       )}
       </Suspense>

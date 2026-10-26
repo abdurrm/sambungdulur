@@ -15,13 +15,15 @@
 
 ## Gambaran umum
 
+**Versi 1.0.1** mencakup pasangan dari orang yang sudah ada, impor KK dengan orang acuan, ekspor cabang keturunan, dan form feedback. Lihat [catatan rilis](docs/RELEASE-v1.0.1.md) serta [roadmap](docs/ROADMAP.md).
+
 | | |
 |---|---|
 | Jenis | Aplikasi web statis (React + TypeScript + Vite), Progressive Web App |
 | Data | Disimpan di browser (IndexedDB); file dibaca/ditulis lewat pemilih file |
 | Jaringan | Tidak diperlukan setelah halaman pertama kali dimuat (service worker) |
 | Bahasa UI | Indonesia (default), Jawa, Inggris |
-| Format masuk | `.sambung`, `.ged` (GEDCOM 5.5/5.5.1 UTF-8), `.zip` cadangan MyHeritage FTB (hanya-baca), `.zip` berisi GEDCOM + foto |
+| Format masuk | `.sambung`, `.ged` (GEDCOM 5.5/5.5.1 UTF-8), `.zip` cadangan MyHeritage FTB (hanya-baca), `.zip` berisi GEDCOM + foto; impor KK PDF/JPEG/PNG ke proyek aktif |
 | Format keluar | `.sambung`, GEDCOM `.ged` / ZIP + foto, PNG (Ringkas/Normal/Rinci), JPEG, SVG, dokumen silsilah `.txt` |
 
 Tidak ada data keluarga yang dikirim ke luar mesin. Satu-satunya jaringan yang dipakai adalah memuat aplikasi itu sendiri.
@@ -31,7 +33,7 @@ Tidak ada data keluarga yang dikirim ke luar mesin. Satu-satunya jaringan yang d
 ### Editor pohon (setara situs asli)
 - Pohon awal tiga orang (saya, ayah, ibu); orang pertama langsung terpilih.
 - Panel kiri dengan tab **Pribadi / Biografi / Gambar**, mode **Ubah data** per tab: nama depan, nama keluarga kini & lahir, jenis kelamin (Perempuan/Laki-laki/Lainnya), tanggal lahir/wafat (Hari/Bulan/Tahun, boleh sebagian), status wafat, negara/tempat lahir (dengan saran negara), pekerjaan, fakta menarik/biografi.
-- **Tambah orang tua** (nonaktif bila sudah ada), **saudara** (otomatis membuat orang tua bila belum ada), **pasangan** (lawan jenis), **anak** dengan tiga pilihan: bersama pasangan yang ada, dengan pasangan baru, atau orang tua tunggal.
+- **Tambah orang tua** (nonaktif bila sudah ada), **saudara** (otomatis membuat orang tua bila belum ada), **pasangan** baru atau pilih orang yang sudah ada (termasuk kerabat jauh), **anak** dengan tiga pilihan: bersama pasangan yang ada, dengan pasangan baru, atau orang tua tunggal.
 - **Hapus orang** dengan aturan yang sama dengan situs asli: orang terakhir tidak bisa dihapus dan penghapusan yang **memecah pohon** ditolak.
 - **Unggah foto** dengan potong (geser + zoom) menjadi 512×512, **hapus foto**.
 - **Pengaturan pohon**: 5 format tanggal (MM/DD/YYYY, MM.DD.YYYY, DD/MM/YYYY, DD.MM.YYYY, YYYY), ukuran huruf Kecil/Normal/Besar, nama keluarga kini/lahir, gaya Polos/Berbingkai, tampil/sembunyi tanggal lahir/wafat (saling terkait), negara, pekerjaan & fakta (nonaktif pada huruf Besar), gambar.
@@ -40,6 +42,10 @@ Tidak ada data keluarga yang dikirim ke luar mesin. Satu-satunya jaringan yang d
 - **Atur ulang pohon** dengan konfirmasi.
 
 ### Peningkatan
+- **Feedback untuk developer**: tombol masukan di toolbar desktop atau menu lainnya di ponsel. Isi jenis, judul, rincian, dan langkah reproduksi, lalu tinjau pratinjau. Buka draf issue baru yang telah terisi, atau salin teks untuk komentar pada nomor issue yang dipilih. Pengiriman akhir dilakukan pengguna di GitHub dengan akun GitHub. Data keluarga/KK tidak dilampirkan otomatis; informasi browser hanya disertakan jika dipilih. Teks panjang dapat disalin manual agar tidak terpotong oleh batas URL.
+- **Impor Kartu Keluarga**: Buka → Impor Kartu Keluarga → tentukan orang acuan per dokumen → baca PDF atau scan JPEG/PNG secara lokal → konfirmasi penyebutan orang acuan → pilih identitas lama/orang baru/tunda untuk anggota dan orang tua → tinjau perubahan per kolom → terapkan. Kandidat dimulai dari keluarga acuan; tersedia pencarian seluruh proyek. Data saudara, anak, pasangan, dan orang tua yang telah dipilih diperbarui bersama. Perbedaan data tidak dicentang secara bawaan; nama sama bukan bukti identitas. Dokumen yang sama dapat ditinjau ulang dengan mempertahankan identitas baris yang sudah diterapkan.
+- **Referensi KK privat**: NIK opsional, informasi tambahan, halaman/baris sumber, dan dokumen asli tersimpan lokal. Simpan proyek menyediakan pilihan menyertakan dokumen asli dalam `.sambung` versi 3; versi 1/2 tetap dapat dibuka. Versi aplikasi lama tidak dapat membuka format versi 3.
+- **Ekspor cabang keturunan**: Ekspor → Cabang keturunan → pilih pangkal, misalnya Irjam. Hasil berisi pangkal dan seluruh keturunannya, meski cabang dilipat pada layar. Pasangan opsional; keluarga asal dan anak lain pasangan tidak ikut. Mendukung PNG/JPEG/SVG, teks, GEDCOM/ZIP, serta salinan `.sambung`. NIK dan KK asli tidak ikut secara bawaan. Simpan proyek tetap menyimpan seluruh proyek.
 - **Diagram bergaya archify**: kanvas slate dengan kisi, kartu bersih dengan aksen, metadata monospace, garis siku membulat, sorotan garis keturunan (leluhur + keturunan) orang terpilih, animasi *trace* opsional, tema terang/gelap.
 - **Bingkai foto berbeda per jenis kelamin**: cincin biru = laki-laki, magenta = perempuan, ungu putus-putus = lainnya/tidak diketahui (dengan legenda).
 - **Kontrol generasi**: pilih 0–10 atau Semua generasi leluhur (▲) dan keturunan (▼) di sekitar orang fokus; tombol `+`/`−` pada kartu untuk membuka/menutup cabang; ringkas/perluas rincian per kartu.
@@ -86,6 +92,9 @@ Buka aplikasi di Chrome/Edge (desktop atau Android) → tombol **Pasang** di too
 
 ## Batasan format (jujur)
 
+- **KK**: maksimal 30 MB per dokumen dan 20 halaman per PDF. OCR scan dapat keliru atau melewatkan kolom/baris; koreksi hasil, putar scan bila perlu, atau tambahkan baris secara manual sebelum konfirmasi. Metadata orientasi gambar dapat diperhitungkan browser secara otomatis. Semua data hasil baca adalah usulan, bukan verifikasi kependudukan. Pembacaan ini belum menguji semua variasi formulir KK.
+- **Ekspor cabang** membatasi identitas, relasi, indeks, dan media yang dipilih. Catatan bebas serta foto tetap perlu ditinjau sebelum dibagikan. Jika KK asli disertakan secara eksplisit, dokumen tersebut dapat memuat anggota di luar cabang.
+
 - **GEDCOM**: UTF-8 (dengan/tanpa BOM); file non-UTF-8 dibaca sebagai Windows-1252 dengan peringatan; **ANSEL tidak didukung**. Kolom yang bisa diedit: nama (GIVN/SURN/`_MARNM`), jenis kelamin, BIRT DATE/PLAC, DEAT/DATE, OCCU, NOTE pertama, foto utama (OBJE `_PRIM`), relasi keluarga. Tag lain (RESI, MARR, DIV, EMAIL, `_UID`, `_UPD`, sumber, dll.) **dipertahankan apa adanya** tetapi tidak bisa diedit di aplikasi. Catatan HTML MyHeritage ditampilkan sebagai teks; bila diedit, ditulis kembali sebagai teks biasa.
 - **Satu foto utama per orang** dapat diedit; foto lain dari sumber ditampilkan hanya-baca dan tetap ada di ekspor GEDCOM.
 - **MyHeritage FTB (`.zip` berisi `.ftb`)**: diimpor **hanya-baca** (nama, jenis kelamin, lahir/wafat, pekerjaan, catatan, keluarga, foto profil & galeri). Fakta lain (RESI, BURI, EDUC, MARR, DIV, …), *face tagging*, sumber, dan konfigurasi proyek **tidak** diimpor (dilaporkan saat impor). File `.ftb` tidak pernah ditulis; simpan hasil edit sebagai `.sambung` atau GEDCOM.
@@ -106,7 +115,8 @@ Tes yang memakai data keluarga nyata membaca salinan di `local-test-data/` (diab
 
 ```
 src/
-  model/      tipe data, relasi (tambah/hapus), tanggal, pohon awal
+  model/      tipe data, relasi (tambah/hapus/tautkan), proyeksi cabang, tanggal, pohon awal
+  kk/         pembacaan PDF/OCR lokal, tabel KK, pencocokan dan penerapan draf
   gedcom/     parser/serializer GEDCOM lossless + pemetaan model
   ftb/        importer cadangan MyHeritage Family Tree Builder (SQLite via sql.js)
   layout/     pemilihan generasi, metrik kartu, tata letak berlapis

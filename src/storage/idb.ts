@@ -48,6 +48,18 @@ export async function putMedia(id: string, blob: Blob): Promise<void> {
   await tx('media', 'readwrite', (s) => s.put(blob, id));
 }
 
+/** One durable transaction for a reviewed import and its private original source. */
+export async function saveDocWithMedia(doc: TreeDoc, id: string, blob: Blob): Promise<void> {
+  const db = await open();
+  await new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction(['kv', 'media'], 'readwrite');
+    transaction.objectStore('kv').put(doc, 'current');
+    transaction.objectStore('media').put(blob, id);
+    transaction.oncomplete = () => { db.close(); resolve(); };
+    transaction.onerror = transaction.onabort = () => { db.close(); reject(transaction.error); };
+  });
+}
+
 export async function getMedia(id: string): Promise<Blob | undefined> {
   return tx<Blob>('media', 'readonly', (s) => s.get(id));
 }

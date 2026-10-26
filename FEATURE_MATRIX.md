@@ -10,6 +10,17 @@ Catatan metode: alat REA `analyze_javascript_application` gagal mem-parse bundle
 
 ## Editor & relasi
 
+Tambahan fase 1 (implementasi lokal, bukan bukti perilaku situs pembanding):
+
+| Fitur | Implementasi | Verifikasi |
+|---|---|---|
+| Pilih pasangan dari orang yang sudah ada | Satu identitas; relasi asal dipertahankan; tautan berulang tidak menggandakan keluarga | Unit + browser, kerabat dengan leluhur bersama dan tingkat generasi berbeda |
+| Impor KK dengan orang acuan | PDF berteks, OCR lokal untuk scan, rotasi/praproses, draf anggota dan nama orang tua | Unit + browser dengan dokumen fiktif; pembacaan lokal empat lampiran, tanpa menerapkan data pribadi |
+| Pembaruan kerabat | Pilih identitas, kolom, dan relasi; konflik mempertahankan nilai lama secara bawaan; impor dapat diurungkan | Unit + browser untuk pembaruan saudara, sumber, cadangan, dan undo |
+| Ekspor Bani/cabang keturunan | Proyeksi tertutup lintas format, pasangan opsional, NIK/KK asli opsional, sumber GEDCOM penuh dibuang dari salinan cabang | Unit untuk relasi/identitas/media; browser untuk teks dan `.sambung` |
+| Google/Drive, kolaborasi, discovery | Roadmap fase 2–4 | Belum diimplementasikan |
+| Feedback pengguna | Form pratinjau, draf issue baru, salin komentar issue lama; konfirmasi publik, tanpa lampiran otomatis | Unit untuk URL/isi/nomor issue; browser desktop/ponsel dan clipboard |
+
 | ID | Fitur | Observed | Implemented | Tested | Bukti / catatan |
 |---|---|---|---|---|---|
 | F01 | Pohon awal 3 orang, orang pertama terpilih | B @565571 (`gA`), T-A | ✅ teks & avatar milik sendiri | E, M | Situs memakai foto siluet bawaan; lokal memakai inisial berwarna gender |

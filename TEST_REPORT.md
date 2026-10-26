@@ -1,5 +1,43 @@
 # Laporan Pengujian — SambungDulur
 
+## v1.0.1 — pemeriksaan pra-rilis 26 Oktober 2026
+
+- `npm test`: **103/103 lulus**, 14 berkas.
+- `npm run build`: **lulus**, termasuk TypeScript dan aset OCR lokal.
+- `npx playwright test`: **69/69 lulus dalam satu run penuh** (2,5 menit), Microsoft Edge desktop dan emulasi ponsel. Ini merupakan hasil terbaru yang mencakup fase 1 serta form feedback.
+- Feedback: validasi tujuan issue, encoding judul/isi, teks panjang, pratinjau tanpa data keluarga otomatis, clipboard dan fallback manual, nomor issue lama, pilihan informasi browser, konfirmasi publik, aksesibilitas, dan tampilan ponsel.
+- Isi clipboard diuji dengan normalisasi LF/CRLF sesuai platform; perbedaan akhir baris Windows tidak diperlakukan sebagai hilangnya teks.
+- Tidak ada issue/komentar uji yang dipublikasikan. Pengujian memverifikasi draf URL dan teks; pengiriman akhir dilakukan pengguna di GitHub.
+
+Versi dapat dibaca pada form feedback, atribut `data-app-version`, metadata HTML, dan `version.json`. Build GitHub Actions menambahkan SHA commit pada `version.json` untuk verifikasi deployment. Status publikasi/deployment diperiksa melalui workflow dan readback situs setelah commit dipush; keberhasilan build lokal sendiri bukan bukti deployment.
+
+Pembuatan URL draf mengikuti [dokumentasi resmi GitHub untuk parameter issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/creating-an-issue). Komentar issue lama memakai salin/tempel; aplikasi tidak menyimpan token GitHub atau melakukan POST feedback.
+
+## 26 Oktober 2026 — fase 1, implementasi lokal
+
+Rekam pemeriksaan awal sebelum penambahan feedback; hasil pra-rilis terbaru ada di atas.
+
+Cabang `feat/kk-dan-cabang-keturunan`, setelah baseline remote v1.0.0 (`e89d2b7`). Hasil ini tidak menyatakan fitur baru sudah dipush atau dideploy.
+
+- `npm test`: **97 lulus**, 13 berkas. Tambahan mencakup tautan kerabat tanpa duplikasi, perbedaan tingkat generasi, pencegahan siklus, orang tua parsial, pasangan tanpa mewarisi anak, pemisahan cabang, sumber/media privat, OCR tabel, identitas senama, NIK, impor ulang, dan penerapan atomik pada model.
+- `npm run build`: **lulus**, termasuk pemeriksaan TypeScript. PDF.js, worker OCR, model bahasa Indonesia, dan lisensinya dibundel dari aplikasi sendiri.
+- Run penuh `npx playwright test`: **65 lulus / 1 gagal** pada langkah tes tambahan editor. Seluruh 61 tes regresi lama lulus; tes tambahan tersebut mencoba mengklik kartu yang tertutup pop-up. Setelah memperbaiki langkah navigasi tes, diperlukan juga pemilihan ulang tab Biografi ketika editor orang lain dibuka. Pengujian ulang editor tersebut sudah lulus. Hasil run ini tidak dinyatakan sebagai satu run penuh 66/66.
+- Pengujian akhir `npx playwright test tests/e2e/kk_branch.spec.ts`: **5/5 lulus** (22,8 detik), mencakup seluruh tes baru desktop dan ponsel pada revisi akhir. Ini merupakan uji ulang terarah setelah perbaikan langkah tes dan penyelesaian kode.
+
+Pemeriksaan browser mencakup: pasangan dari orang lama, keluaran cabang TXT/GEDCOM/SVG/PNG/JPEG/`.sambung`, batch KK dengan orang acuan per dokumen, pembaruan saudara tanpa orang baru, penyimpanan dokumen sumber secara opsional, impor ulang dan undo, NIK yang bisa disunting dengan validasi duplikat, serta modal ponsel 390 px dan pemeriksaan aksesibilitas. Uji OCR memakai scan fiktif yang diputar, service worker aktif, lalu jaringan dimatikan sebelum pembacaan. Masalah cache modul akibat `Vary: Origin` ditemukan melalui uji luring dan diperbaiki untuk aset statis dari origin aplikasi.
+
+Empat lampiran pribadi diperiksa lokal sebagai uji baca, tanpa menerapkan orang nyata ke proyek uji: dua PDF berteks dan dua scan menghasilkan total 16 baris anggota setelah praproses. Ini membuktikan deteksi baris pada contoh tersebut, bukan ketepatan setiap nama/NIK/atribut atau semua variasi KK. Nama orang tua pada scan masih dapat memerlukan koreksi. Tidak ada dokumen asli, teks hasil baca, atau screenshot data pribadi dalam berkas perubahan publik.
+
+Screenshot QA lokal yang diperiksa memakai data fiktif: `temp/kk-desktop.png` dan `temp/kk-mobile.png` (diabaikan git). Keduanya tidak menunjukkan luapan horizontal dan tombol tindakan modal tetap terlihat.
+
+Lingkungan sesi ini: Windows, Node 22.23.0, npm 11.18.0, Microsoft Edge headless; ponsel menggunakan emulasi viewport/sentuh. Ponsel fisik, seluruh format scan, Google Drive, kolaborasi, discovery, dan deployment baru belum diuji.
+
+Rujukan implementasi: [contoh resmi PDF.js](https://mozilla.github.io/pdf.js/examples/) dan [konfigurasi aset lokal Tesseract.js](https://github.com/naptha/tesseract.js/blob/master/docs/local-installation.md).
+
+## Laporan historis sebelum fase 1
+
+Bagian berikut dipertahankan sebagai rekam pengujian sebelumnya; angka serta lingkupnya bukan hasil ulang pada sesi ini.
+
 Lingkungan: Windows 11, Node 22.23.0, npm 11.18.0, Vite 8.3.5, Vitest 5.0.5, Playwright (channel `msedge`, Edge terpasang).
 Laporan ini menggantikan laporan sesi sebelumnya, yang memuat klaim tidak akurat (ukuran `.ftb` 9,5 MB — sebenarnya 2,1 MB; screenshot yang dirujuk tidak ada; parser lama tidak menulis perubahan relasi ke record FAM).
 

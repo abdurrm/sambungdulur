@@ -93,7 +93,7 @@ export function components(doc: TreeDoc): string[][] {
 export const MAX_PARTNER_FAMILIES = 20;
 
 export class RelationError extends Error {
-  constructor(public code: 'last-person' | 'split' | 'has-parents' | 'partner-limit' | 'not-found', message: string) {
+  constructor(public code: 'last-person' | 'split' | 'has-parents' | 'partner-limit' | 'not-found' | 'invalid-relation', message: string) {
     super(message);
   }
 }
@@ -204,6 +204,51 @@ export function addPartner(src: TreeDoc, id: string): MutationResult {
   if (single) setFamily(doc, { ...single, partners: [id, partner.id] });
   else newFamily(doc, [id, partner.id], []);
   return { doc, select: partner.id };
+}
+
+/** Link two existing identities, preserving their other relationships. Repeating it is a no-op. */
+export function linkPartner(src: TreeDoc, id: string, partnerId: string): MutationResult {
+  if (!src.persons[id] || !src.persons[partnerId]) throw new RelationError('not-found', t('errNotFound'));
+  if (id === partnerId) throw new RelationError('invalid-relation', t('errSelfPartner'));
+  if (partnersOf(src, id).includes(partnerId)) return { doc: src, select: partnerId };
+  for (const p of [id, partnerId]) if (partnerFamilies(src, p).length >= MAX_PARTNER_FAMILIES)
+    throw new RelationError('partner-limit', t('errPartnerLimit', { n: MAX_PARTNER_FAMILIES }));
+  const doc = clone(src);
+  // A new spouse is not automatically a parent of someone's existing children.
+  newFamily(doc, [id, partnerId], []);
+  return { doc, select: partnerId };
+}
+
+export function isDescendant(doc: TreeDoc, ancestor: string, candidate: string): boolean {
+  const seen = new Set<string>();
+  const queue = [ancestor];
+  for (let i = 0; i < queue.length; i++) {
+    const id = queue[i];
+    if (seen.has(id)) continue;
+    seen.add(id);
+    if (id === candidate) return true;
+    queue.push(...childrenOf(doc, id));
+  }
+  return false;
+}
+
+/** Explicit reviewed parent assignment; it never changes another child's parent family. */
+export function assignParents(src: TreeDoc, childId: string, parentIds: string[], replace = false): TreeDoc {
+  const ids = [...new Set(parentIds)];
+  if (!src.persons[childId] || ids.some((id) => !src.persons[id])) throw new RelationError('not-found', t('errNotFound'));
+  if (ids.length > 2 || ids.some((id) => isDescendant(src, childId, id)))
+    throw new RelationError('invalid-relation', t('errParentCycle'));
+  const old = parentsOf(src, childId);
+  if (old.length === ids.length && old.every((p) => ids.includes(p))) return src;
+  if (!replace && old.some((p) => !ids.includes(p))) throw new RelationError('has-parents', t('errHasParents'));
+  const doc = clone(src);
+  for (const f of parentFamilies(src, childId)) setFamily(doc, { ...f, children: f.children.filter((c) => c !== childId) });
+  if (ids.length) {
+    const family = doc.familyOrder.map((id) => doc.families[id]).find((f) => f.partners.length === ids.length && ids.every((p) => f.partners.includes(p)));
+    if (family) setFamily(doc, { ...family, children: [...family.children, childId] });
+    else newFamily(doc, ids, [childId]);
+  }
+  return doc;
 }
 
 export type AddChildMode =

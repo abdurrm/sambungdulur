@@ -90,6 +90,10 @@ export function extractPerson(indi: GedNode, notes: Map<string, GedNode>): Extra
     profession: child(indi, 'OCCU')?.value.trim() ?? '',
     facts: noteText(indi, notes),
     photoPath: child(primaryObje(indi), 'FILE')?.value.trim() ?? '',
+    ...(child(indi, '_NIK') ? { nik: child(indi, '_NIK')!.value.trim() } : {}),
+    ...(child(indi, 'RELI') ? { religion: child(indi, 'RELI')!.value.trim() } : {}),
+    ...(child(indi, 'EDUC') ? { education: child(indi, 'EDUC')!.value.trim() } : {}),
+    ...(child(indi, 'NATI') ? { nationality: child(indi, 'NATI')!.value.trim() } : {}),
   };
 }
 
@@ -279,6 +283,12 @@ function applyPerson(
   notes: Map<string, GedNode>,
 ) {
   applyName(indi, want, have);
+  for (const [field, tag] of [['nik', '_NIK'], ['religion', 'RELI'], ['education', 'EDUC'], ['nationality', 'NATI']] as const) {
+    if (want[field] === have?.[field]) continue;
+    const previous = child(indi, tag);
+    if (want[field]) setValue(previous ?? ensureChild(indi, tag), want[field]!);
+    else if (previous) removeChild(indi, previous);
+  }
   if (!have || have.gender !== want.gender) {
     const sex = child(indi, 'SEX') ?? ensureChild(indi, 'SEX', ['NAME']);
     setValue(sex, sexCode(want.gender));

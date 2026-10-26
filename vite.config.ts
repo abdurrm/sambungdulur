@@ -1,7 +1,50 @@
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { hasWeight } from './src/ui/iconWeights.ts';
+
+function versionInfo(): Plugin {
+  const version = JSON.parse(readFileSync(resolve('package.json'), 'utf8')).version as string;
+  return {
+    name: 'sambungdulur-version',
+    transformIndexHtml() { return [{ tag: 'meta', attrs: { name: 'application-version', content: version }, injectTo: 'head' }]; },
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ version, ...(process.env.GITHUB_SHA ? { commit: process.env.GITHUB_SHA } : {}) }) });
+    },
+  };
+}
+
+/** OCR assets are served from this application, never a third-party CDN. */
+function kkAssets(): Plugin {
+  const files: Record<string, string> = {
+    'worker.min.js': 'node_modules/tesseract.js/dist/worker.min.js',
+    'ind.traineddata.gz': 'node_modules/@tesseract.js-data/ind/4.0.0/ind.traineddata.gz',
+    'worker.min.js.LICENSE.txt': 'node_modules/tesseract.js/dist/worker.min.js.LICENSE.txt',
+    'tesseract-LICENSE.txt': 'node_modules/tesseract.js/LICENSE.md',
+    'core-LICENSE.txt': 'node_modules/tesseract.js-core/LICENSE',
+    'pdfjs-LICENSE.txt': 'node_modules/pdfjs-dist/LICENSE',
+  };
+  for (const variant of ['lstm', 'simd-lstm', 'relaxedsimd-lstm']) {
+    const name = `tesseract-core-${variant}.wasm.js`;
+    files[name] = `node_modules/tesseract.js-core/${name}`;
+  }
+  return {
+    name: 'sambungdulur-local-ocr',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const key = req.url?.split('?')[0].split('/kk-assets/')[1];
+        if (!key || !files[key]) return next();
+        res.setHeader('Content-Type', key.endsWith('.js') ? 'application/javascript' : 'application/gzip');
+        res.end(readFileSync(resolve(files[key])));
+      });
+    },
+    generateBundle() {
+      for (const [name, path] of Object.entries(files)) this.emitFile({ type: 'asset', fileName: `kk-assets/${name}`, source: readFileSync(resolve(path)) });
+    },
+  };
+}
 
 /**
  * Generates dist/sw.js after the bundle is written: a cache-first service worker that
@@ -17,7 +60,9 @@ function serviceWorker(): Plugin {
       const assets = Object.keys(bundle).filter((f) => !f.endsWith('.map'));
       const files = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/icon-monochrome-512.png', 'icons/favicon-32.png', 'icons/apple-touch-icon.png', ...assets];
       const unique = [...new Set(files)];
-      const version = createHash('sha256').update(unique.join('\n')).digest('hex').slice(0, 12);
+      const hash = createHash('sha256').update('static-assets-v2\n').update(unique.join('\n'));
+      for (const asset of Object.values(bundle)) if (asset.type === 'asset' && asset.fileName.startsWith('kk-assets/')) hash.update(asset.source);
+      const version = hash.digest('hex').slice(0, 12);
       const source = `// Generated at build time. Precaches the app shell for offline use.
 const CACHE = 'sambungdulur-${version}';
 const FILES = ${JSON.stringify(unique)};
@@ -38,7 +83,9 @@ self.addEventListener('fetch', (e) => {
     return;
   }
   e.respondWith(
-    caches.match(req).then((hit) => hit || fetch(req).then((res) => {
+    // Static same-origin assets have no personalized variants. Preview servers may add
+    // Vary: Origin, whereas cache.addAll and module imports use different Origin headers.
+    caches.match(req, { ignoreVary: true }).then((hit) => hit || fetch(req).then((res) => {
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
       return res;
     })),
@@ -76,7 +123,7 @@ function phosphorWeights(): Plugin {
 
 export default defineConfig({
   base: './',
-  plugins: [phosphorWeights(), react(), serviceWorker()],
+  plugins: [phosphorWeights(), react(), kkAssets(), versionInfo(), serviceWorker()],
   build: { target: 'es2022', chunkSizeWarningLimit: 1500 },
   server: { host: '127.0.0.1', port: 5173, strictPort: true },
   preview: { host: '127.0.0.1', port: 4173, strictPort: true },
